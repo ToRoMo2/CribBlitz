@@ -1,0 +1,153 @@
+import { formatCarte, formatCartes, type Carte } from '../core/carte.js'
+import type { Evenement, Origine } from '../core/evenements.js'
+import type { EtatPartie } from '../core/etat.js'
+import { coutDuTrou } from '../core/trous.js'
+import { VOIES } from '../presets/voies.js'
+
+/**
+ * La seule couche du projet qui met en forme du texte. Elle rejoue le flux d'evenements
+ * produit par le coeur — exactement ce que fera un jour la couche d'animation.
+ */
+
+const LARGEUR_PISTE = 56
+
+export function formatPlateau(state: EtatPartie): string {
+  const piste = Array.from({ length: LARGEUR_PISTE }, () => '·')
+  const position = (trou: number): number =>
+    Math.min(LARGEUR_PISTE - 1, Math.round((trou / state.config.manche.trouFinal) * (LARGEUR_PISTE - 1)))
+
+  piste[position(state.cible)] = 'A'
+  piste[position(state.trou)] = state.trou === state.cible ? 'X' : 'V'
+
+  const prochain = coutDuTrou(state.trou + 1, state.config.manche)
+  return [
+    `  vous ▸ Trou ${state.trou}     adversaire ▸ Trou ${state.cible}` +
+      `     report ${state.reste} / ${prochain} pts`,
+    `  [${piste.join('')}]`,
+  ].join('\n')
+}
+
+export function formatMainIndexee(cartes: readonly Carte[]): string {
+  return cartes.map((carte, index) => `[${index}] ${formatCarte(carte)}`).join('   ')
+}
+
+export function formatBoite(boite: readonly Carte[], attendu: number): string {
+  const contenu = boite.length === 0 ? '(vide)' : formatCartes(boite)
+  return `  BOÎTE (${boite.length}/${attendu})  ${contenu}`
+}
+
+/** Rejoue les evenements en texte. L'etat de rendu — le total qui se scande — vit ici. */
+export function rendreEvenements(evenements: readonly Evenement[]): string[] {
+  const lignes: string[] = []
+  let courant = 0
+  let origine: Origine | null = null
+
+  for (const evenement of evenements) {
+    if (evenement.type === 'COMBINAISON_TROUVEE' && evenement.origine !== origine) {
+      origine = evenement.origine
+      courant = 0
+      lignes.push('', origine === 'BOITE' ? '  ═══ LA BOÎTE ═══' : '  ─── le Compte ───')
+    }
+    lignes.push(...rendreUn(evenement, () => (courant += pointsDe(evenement))))
+  }
+  return lignes
+}
+
+function pointsDe(evenement: Evenement): number {
+  return evenement.type === 'COMBINAISON_TROUVEE' ? evenement.points : 0
+}
+
+function rendreUn(evenement: Evenement, cumuler: () => number): string[] {
+  switch (evenement.type) {
+    case 'DONNE_DISTRIBUEE':
+      return ['', `━━━ DONNE ${evenement.donne} ━━━`]
+    case 'CARTES_DEFAUSSEES':
+      return [
+        `  Boîte ← ${formatCartes(evenement.cartes)}   (${evenement.tailleBoite} cartes dedans)`,
+      ]
+    case 'RETOURNE_REVELEE':
+      return [`  Retourne : ${formatCarte(evenement.carte)}`]
+    case 'TALONS':
+      return [`  Talons ! +${evenement.points}`]
+    case 'POSE_CARTE':
+      return [`  pose ${formatCarte(evenement.carte).padEnd(4)}  total ${evenement.total}`]
+    case 'POSE_MARQUE':
+      return [`        ↑ ${libelleMarque(evenement.raison)} +${evenement.points}`]
+    case 'POSE_ENCAISSE':
+      return [`  Pose encaissée : ${evenement.points} pts`]
+    case 'POSE_EXPLOSE':
+      return [
+        `  ✖ EXPLOSION à ${evenement.total} — ${evenement.pointsPerdus} pts de Pose perdus`,
+      ]
+    case 'COMBINAISON_TROUVEE': {
+      const total = cumuler()
+      const nom = evenement.combinaison.type === 'QUINZAINE'
+        ? `quinze ${total}`
+        : `${VOIES[evenement.combinaison.type].nom.toLowerCase()} ${total}`
+      return [
+        `   ${nom.padEnd(14)} ${formatCartes(evenement.combinaison.cartes).padEnd(20)}` +
+          ` +${evenement.points}`,
+      ]
+    }
+    case 'MULT_APPLIQUE': {
+      const noms = evenement.voies.map((voie) => VOIES[voie].nom).join(', ')
+      return [`   ×${evenement.mult}   (${noms || 'aucune Voie'})`]
+    }
+    case 'SCORE_CALCULE':
+      return [`   ${evenement.points} × ${evenement.mult} = ${evenement.score}`]
+    case 'BOITE_COMPTEE':
+      return [`   la Boîte (${evenement.cartes.length} cartes) rapporte ${evenement.score}`]
+    case 'CHEVILLE_AVANCE':
+      return evenement.a === evenement.de
+        ? [`  cheville : Trou ${evenement.a} (report ${evenement.reste})`]
+        : [`  cheville : Trou ${evenement.de} → ${evenement.a} (report ${evenement.reste})`]
+    case 'MANCHE_GAGNEE':
+      return ['', `★ MANCHE GAGNÉE — Trou ${evenement.trou} contre ${evenement.cible}`]
+    case 'MANCHE_PERDUE':
+      return ['', `✖ MANCHE PERDUE — Trou ${evenement.trou} contre ${evenement.cible}`]
+  }
+}
+
+function libelleMarque(raison: Extract<Evenement, { type: 'POSE_MARQUE' }>['raison']): string {
+  switch (raison) {
+    case 'QUINZAINE':
+      return 'quinze'
+    case 'SEUIL':
+      return 'trente et un'
+    case 'REPETITION':
+      return 'répétition'
+    case 'SUITE':
+      return 'suite'
+    case 'DERNIERE_CARTE':
+      return 'dernière carte'
+    case 'SEUIL_PARFAIT':
+      return '31 pile'
+  }
+}
+
+/** Le tableau de fin de Manche : c'est lui qui rend le choix de defausse discutable. */
+export function formatBilan(state: EtatPartie): string {
+  const lignes = [
+    '',
+    '  Donne   gardée              défaussée   retourne   main    pose   donne',
+    '  ' + '─'.repeat(68),
+  ]
+  for (const donne of state.historique) {
+    lignes.push(
+      `   ${donne.numero}      ${formatCartes(donne.gardee).padEnd(20)}` +
+        `${formatCartes(donne.defaussee).padEnd(12)}` +
+        `${formatCarte(donne.retourne).padEnd(11)}` +
+        `${String(donne.scoreMain).padStart(5)}` +
+        `${String(donne.pointsPose + donne.talons).padStart(7)}` +
+        `${String(donne.scoreDonne).padStart(8)}`,
+    )
+  }
+
+  const sommeMains = state.historique.reduce((total, donne) => total + donne.scoreDonne, 0)
+  const scoreBoite = state.scoreBoite?.score ?? 0
+  const ratio = sommeMains === 0 ? '∞' : (scoreBoite / sommeMains).toFixed(2)
+  lignes.push('  ' + '─'.repeat(68))
+  lignes.push(`   les 4 Donnes : ${sommeMains}`)
+  lignes.push(`   la Boîte     : ${scoreBoite}   (ratio Boîte / Donnes : ${ratio})`)
+  return lignes.join('\n')
+}
