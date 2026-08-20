@@ -8,6 +8,7 @@ import {
   type OptionsRun,
 } from '../src/core/run.js'
 import { REGLES_RUN } from '../src/presets/run.js'
+import { CONFIG_PAR_DEFAUT } from '../src/presets/index.js'
 
 /**
  * Pilote une run entiere avec une strategie betise : defausse les dernieres cartes, pose
@@ -38,20 +39,24 @@ function jouerRun(graine: number, options: OptionsRun = {}): EtatRun {
   }
 }
 
-// Le boss tire sa cible de ciblesBoss ; on la cale sur la valeur de la Manche 3 pour que
-// forcer cibles([…, X]) force bien l'issue du boss aussi.
+/**
+ * Force les cibles, et raccourcit la run a leur nombre : ces tests pilotent la machine a
+ * etats de la run, pas la calibration des 12 Manches.
+ */
 const cibles = (valeurs: readonly number[]): OptionsRun => ({
   reglesRun: {
     ...REGLES_RUN,
+    nombreDeManches: valeurs.length,
     cibles: valeurs,
-    ciblesBoss: { 'le-sourd': valeurs[2] ?? 0, 'le-mesquin': valeurs[2] ?? 0 },
+    indicesAdversaires: [valeurs.length - 1],
+    ajustementsBoss: {},
   },
 })
 
 describe('la structure de la run', () => {
-  it('enchaîne 3 Manches et met l’Adversaire sur la dernière', () => {
-    expect(REGLES_RUN.nombreDeManches).toBe(3)
-    expect(REGLES_RUN.indexAdversaire).toBe(2)
+  it('enchaîne 12 Manches et met un Adversaire à la fin de chaque Rue', () => {
+    expect(REGLES_RUN.nombreDeManches).toBe(12)
+    expect(REGLES_RUN.indicesAdversaires).toEqual([2, 5, 8, 11])
     const { run } = creerRun(1)
     expect(run.indexManche).toBe(0)
     expect(run.statut).toBe('MANCHE')
@@ -87,6 +92,62 @@ describe('la victoire et la défaite', () => {
     const run = jouerRun(1, cibles([1, 1, 100000]))
     expect(run.statut).toBe('PERDUE')
     expect(run.indexManche).toBe(2)
+  })
+})
+
+describe('le plateau persistant [carnet §4.2]', () => {
+  it('la cheville ne repart pas de zéro à la Manche suivante', () => {
+    let { run } = creerRun(1, cibles([1, 1, 1]))
+    run = joueUneManche(run)
+    const apresLaPremiere = run.manche.trou
+    expect(apresLaPremiere).toBeGreaterThan(0)
+
+    run = commencerMancheSuivante(run).run
+    expect(run.manche.trou).toBe(apresLaPremiere)
+    expect(run.indexManche).toBe(1)
+  })
+
+  it('reporte aussi les points non convertis d’une Manche à l’autre', () => {
+    let { run } = creerRun(1, cibles([1, 1, 1]))
+    run = joueUneManche(run)
+    const reste = run.manche.reste
+    run = commencerMancheSuivante(run).run
+    expect(run.manche.reste).toBe(reste)
+  })
+
+  it('la run transporte la piste, la Manche ne fait que la parcourir', () => {
+    let { run } = creerRun(1, cibles([1, 1, 1]))
+    run = joueUneManche(run)
+    expect(run.progression).toEqual({ trou: run.manche.trou, reste: run.manche.reste })
+  })
+
+  it('les 12 cibles du carnet sont des positions absolues, donc croissantes', () => {
+    const croissantes = REGLES_RUN.cibles.every(
+      (cible, index) => index === 0 || cible > (REGLES_RUN.cibles[index - 1] as number),
+    )
+    expect(croissantes).toBe(true)
+  })
+})
+
+describe('dépasser le dernier Trou [carnet §8.5]', () => {
+  it('gagne la run séance tenante, sans attendre la dernière Manche', () => {
+    // Un Trou a 1 point : la premiere Manche pulverise la piste entiere.
+    const piste: OptionsRun = {
+      ...cibles([1, 1, 1]),
+      config: {
+        ...CONFIG_PAR_DEFAUT,
+        manche: {
+          ...CONFIG_PAR_DEFAUT.manche,
+          trouFinal: 20,
+          coutsDesTrous: [{ jusquAuTrou: 20, cout: 1 }],
+        },
+      },
+    }
+    const run = jouerRun(1, piste)
+    expect(run.statut).toBe('GAGNEE')
+    // Gagnee des la Manche 1, et non a la troisieme.
+    expect(run.indexManche).toBe(0)
+    expect(run.manche.trou).toBeGreaterThanOrEqual(20)
   })
 })
 

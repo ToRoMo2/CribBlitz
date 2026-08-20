@@ -10,12 +10,14 @@ import {
   type Desaccords,
   type RapportSynergie,
 } from './harnais.js'
+import { POLITIQUES, simulerRuns, type BilanRun } from './runs.js'
 import {
   OPTIONS_PAR_DEFAUT,
   STRATEGIES,
   strategieParNom,
   type OptionsStrategie,
 } from './strategies.js'
+import { REGLES_RUN } from '../presets/run.js'
 
 /**
  * N Manches simulees, statistiques en sortie. Les quatre mesures de PROTOTYPE.md, dont la
@@ -182,6 +184,52 @@ function afficherSynergie(rapport: RapportSynergie): void {
   console.log('  (La Pince : sa valeur est surtout informationnelle ; la mesure la sous-estime.)')
 }
 
+/**
+ * Les mesures de PROTOTYPE §Etape 4. La colonne qui tranche est TROUS/MANCHE : en dessous
+ * de l'ecart entre deux cibles — une dizaine de Trous — la cheville decroche et la Rue
+ * devient un mur.
+ */
+function afficherRuns(bilans: readonly BilanRun[]): void {
+  console.log('')
+  console.log('  politique     %gagné   trou médian   morts par Manche (1→12)')
+  console.log('  ' + '─'.repeat(76))
+  for (const bilan of bilans) {
+    console.log(
+      `  ${bilan.politique.nom.padEnd(13)}` +
+        `${(bilan.tauxVictoire * 100).toFixed(0).padStart(5)}%` +
+        `${String(bilan.trouMedian).padStart(13)}   ` +
+        bilan.mortsParManche.map((morts) => String(morts).padStart(2)).join(' '),
+    )
+  }
+
+  for (const bilan of bilans) {
+    console.log('')
+    console.log(`  par Rue — politique « ${bilan.politique.nom} »`)
+    console.log('  Rue   survie   score/Manche   coût du Trou   TROUS/MANCHE   marge')
+    console.log('  ' + '─'.repeat(76))
+    for (const rue of bilan.rues) {
+      console.log(
+        `  ${String(rue.rue).padEnd(6)}` +
+          `${(rue.survie * 100).toFixed(0).padStart(4)}%` +
+          `${rue.scoreMoyen.toFixed(0).padStart(15)}` +
+          `${rue.coutMoyenDuTrou.toFixed(0).padStart(15)}` +
+          `${rue.trousParManche.toFixed(1).padStart(15)}` +
+          `${rue.margeMoyenne.toFixed(1).padStart(9)}`,
+      )
+    }
+  }
+
+  const ecart = REGLES_RUN.cibles.reduce(
+    (max, cible, index) => (index === 0 ? cible : Math.max(max, cible - (REGLES_RUN.cibles[index - 1] as number))),
+    0,
+  )
+  console.log('')
+  console.log('  ═══ LE VERDICT DE L’ÉTAPE 4 ═══')
+  console.log(`  La cheville adverse avance d’au plus ${ecart} Trous par Manche.`)
+  console.log('  Une Rue dont TROUS/MANCHE tombe sous ce chiffre est un mur, pas une courbe.')
+  console.log('')
+}
+
 function main(): void {
   const manches = entierArgument('manches', 1000)
   const graine = entierArgument('graine', 1)
@@ -192,6 +240,21 @@ function main(): void {
   const brutMult = argument('mult')
   const multiplicateurMain = brutMult === undefined ? CONFIG_PAR_DEFAUT.multiplicateurMain : Number(brutMult)
   const config: ConfigPartie = { ...CONFIG_PAR_DEFAUT, multiplicateurMain }
+
+  if (process.argv.includes('--runs')) {
+    const nombre = entierArgument('runs', 60)
+    const debutRuns = Date.now()
+    console.log('')
+    console.log('BOÎTE — la run entière (étape 4)')
+    console.log(
+      `${nombre} runs de ${REGLES_RUN.nombreDeManches} Manches par politique d’achat, ` +
+        `mêmes graines pour toutes.`,
+    )
+    afficherRuns(POLITIQUES.map((politique) => simulerRuns(politique, nombre, graine, options)))
+    console.log(`  (${((Date.now() - debutRuns) / 1000).toFixed(1)} s)
+`)
+    return
+  }
 
   if (process.argv.includes('--synergie')) {
     const mSyn = entierArgument('manches', 300)

@@ -3,8 +3,9 @@ import { formatCarte, formatCartes, type Carte } from '../core/carte.js'
 import type { DetailGains } from '../core/economie.js'
 import type { Evenement, Origine } from '../core/evenements.js'
 import type { EtatPartie } from '../core/etat.js'
-import type { EtatRun } from '../core/run.js'
+import { adversaireDeLaManche, type EtatRun } from '../core/run.js'
 import { coutDuTrou } from '../core/trous.js'
+import { rueDeLaManche } from '../presets/run.js'
 import { VOIES } from '../presets/voies.js'
 import type { NiveauxVoies } from '../presets/voies.js'
 
@@ -167,20 +168,32 @@ function niveauxAffiches(niveaux: NiveauxVoies): string {
 export function formatEnTeteRun(run: EtatRun): string {
   const total = run.reglesRun.nombreDeManches
   const numero = run.indexManche + 1
-  const estAdversaire = run.indexManche === run.reglesRun.indexAdversaire
+  const rue = rueDeLaManche(run.indexManche, run.reglesRun)
+  const boss = adversaireDeLaManche(run.adversaires, run.reglesRun, run.indexManche)
   const reliques = run.reliquesEquipees.length === 0
     ? '(aucune)'
     : run.reliquesEquipees.map((relique) => relique.nom).join(', ')
 
   const lignes = [
     '',
-    `╔═ MANCHE ${numero}/${total}${estAdversaire ? '  ★ ADVERSAIRE' : ''}` +
+    `╔═ RUE ${'I'.repeat(rue).replace('IIII', 'IV')} · MANCHE ${numero}/${total}${boss !== null ? '  ★ ADVERSAIRE' : ''}` +
       `   cible Trou ${run.reglesRun.cibles[run.indexManche]}   argent ${run.argent} ¤`,
     `║ reliques (${run.reliquesEquipees.length}/${run.reglesRun.emplacementsReliques}) : ${reliques}`,
     `║ Voies améliorées : ${niveauxAffiches(run.niveaux)}`,
   ]
-  if (estAdversaire) lignes.push(`║ ⚠ ${run.adversaire.annonce}`)
-  else lignes.push(`║ Adversaire à venir (Manche ${run.reglesRun.indexAdversaire + 1}) : ${run.adversaire.annonce}`)
+  if (boss !== null) {
+    lignes.push(`║ ⚠ ${boss.annonce}`)
+    return lignes.join('\n')
+  }
+
+  // L'Adversaire de la Rue est annonce avant la boutique qui le precede : c'est ce qui
+  // permet d'acheter contre lui (carnet §4.4).
+  const prochain = run.reglesRun.indicesAdversaires.find((index) => index > run.indexManche)
+  const aVenir =
+    prochain === undefined ? null : adversaireDeLaManche(run.adversaires, run.reglesRun, prochain)
+  if (aVenir !== null && prochain !== undefined) {
+    lignes.push(`║ Adversaire de la Rue (Manche ${prochain + 1}) : ${aVenir.annonce}`)
+  }
   return lignes.join('\n')
 }
 

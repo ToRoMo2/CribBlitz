@@ -11,14 +11,21 @@ import {
 } from './modificateurs.js'
 import { creerPose, encaisser, poser, type EtatPose } from './pose.js'
 import { creerRng, melanger } from './rng.js'
-import { avancer } from './trous.js'
+import { avancer, type Progression } from './trous.js'
 import { calculerScore } from './voies.js'
 import type { Action, EtatDonne, EtatPartie, Resultat, ResumeDonne } from './etat.js'
 import { CONFIG_PAR_DEFAUT, type ConfigPartie } from '../presets/index.js'
 
+/** Le depart par defaut : une Manche isolee commence au pied de la piste. */
+const DEPART: Progression = { trou: 0, reste: 0 }
+
 /**
  * Une Manche : 4 Donnes, la Boite qui accumule les defausses, et son Compte d'un seul coup
  * a la fin (carnet §3). Un seul paquet de 52 melange par Manche, tire sans remise.
+ *
+ * `depart` est la position de la cheville a l'ouverture. Une Manche ne possede pas la piste :
+ * elle la parcourt. C'est la run qui la transporte d'une Manche a l'autre, pour que les 121
+ * Trous du carnet §4.2 forment une seule progression et non douze remises a zero.
  *
  * Les modificateurs (reliques equipees + Adversaire) s'inserent aux points de hook du
  * pipeline. Le moteur ne connait aucun d'eux par son nom : il replie leurs fonctions.
@@ -27,6 +34,7 @@ export function creerManche(
   graine: number,
   config: ConfigPartie = CONFIG_PAR_DEFAUT,
   modificateurs: readonly Modificateur[] = [],
+  depart: Progression = DEPART,
 ): Resultat {
   // Les modificateurs transforment les regles de la Manche une fois, avant qu'elle commence.
   const configEffective: ConfigPartie = {
@@ -47,8 +55,8 @@ export function creerManche(
     boite: [],
     donne: preparee.donne,
     phase: 'DEFAUSSE',
-    trou: 0,
-    reste: 0,
+    trou: depart.trou,
+    reste: depart.reste,
     cible: configEffective.manche.cibleAdversaire,
     historique: [],
     scoreBoite: null,
