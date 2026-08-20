@@ -3,6 +3,7 @@ import type { Combinaison } from './compte.js'
 import type { OccurrenceScoree } from './voies.js'
 import type { Origine } from './evenements.js'
 import type { ReglesManche } from '../presets/manche.js'
+import type { ReglesPose } from '../presets/pose.js'
 
 /**
  * Le point d'extension du jeu. Une Relique et un Adversaire sont la meme chose : un objet
@@ -64,6 +65,17 @@ export interface CtxEconomie {
   readonly cible: number
 }
 
+/**
+ * Ce qu'un Adversaire sait a la fin d'une Donne pour decider d'avancer sa cheville. C'est
+ * tout ce dont Le Regulier, Le Vorace et Le Tranchant ont besoin — aucun d'eux ne joue aux
+ * cartes, ils ne font que reagir a ce qui vient de se passer (carnet §4.4).
+ */
+export interface CtxCheville {
+  readonly donne: number
+  readonly scoreDeLaDonne: number
+  readonly explosee: boolean
+}
+
 export interface Modificateur {
   readonly id: string
   readonly nom: string
@@ -71,6 +83,10 @@ export interface Modificateur {
   readonly famille: Famille
   /** Transforme les regles de la Manche avant qu'elle commence (params, drapeaux, cible). */
   readonly configManche?: (regles: ReglesManche) => ReglesManche
+  /** Transforme les regles de la Pose avant qu'elle commence. */
+  readonly configPose?: (regles: ReglesPose) => ReglesPose
+  /** Deplace la cheville adverse a la fin de chaque Donne. C'est de la meteo, pas un joueur. */
+  readonly surCheville?: (cible: number, ctx: CtxCheville) => number
   /** Transforme la liste des combinaisons juste apres le Compte, avant le score. */
   readonly surCombinaisons?: (combinaisons: readonly Combinaison[], ctx: CtxCompte) => Combinaison[]
   /** Tord Points et Mult apres le calcul, avant conversion en score. */
@@ -90,6 +106,27 @@ export function plierConfigManche(
   return modificateurs.reduce(
     (courant, modificateur) => modificateur.configManche?.(courant) ?? courant,
     regles,
+  )
+}
+
+export function plierConfigPose(
+  modificateurs: readonly Modificateur[],
+  regles: ReglesPose,
+): ReglesPose {
+  return modificateurs.reduce(
+    (courant, modificateur) => modificateur.configPose?.(courant) ?? courant,
+    regles,
+  )
+}
+
+export function plierCheville(
+  modificateurs: readonly Modificateur[],
+  cible: number,
+  ctx: CtxCheville,
+): number {
+  return modificateurs.reduce(
+    (courant, modificateur) => modificateur.surCheville?.(courant, ctx) ?? courant,
+    cible,
   )
 }
 

@@ -102,6 +102,8 @@ function rendreUn(evenement: Evenement, cumuler: () => number): string[] {
       return [`   ${evenement.points} × ${evenement.mult} = ${evenement.score}`]
     case 'BOITE_COMPTEE':
       return [`   la Boîte (${evenement.cartes.length} cartes) rapporte ${evenement.score}`]
+    case 'CIBLE_AVANCE':
+      return [`  ⚠ ${evenement.adversaire} avance : Trou ${evenement.de} → ${evenement.a}`]
     case 'CHEVILLE_AVANCE':
       return evenement.a === evenement.de
         ? [`  cheville : Trou ${evenement.a} (report ${evenement.reste})`]

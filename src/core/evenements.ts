@@ -50,6 +50,13 @@ export type Evenement =
       readonly origine: Origine
     }
   | { readonly type: 'BOITE_COMPTEE'; readonly cartes: readonly Carte[]; readonly score: number }
+  /** La cheville adverse bouge. Ce n'est pas un joueur qui decide : c'est de la meteo. */
+  | {
+      readonly type: 'CIBLE_AVANCE'
+      readonly de: number
+      readonly a: number
+      readonly adversaire: string
+    }
   | {
       readonly type: 'CHEVILLE_AVANCE'
       readonly de: number

@@ -20,12 +20,24 @@ export function creerPose(cartes: readonly Carte[]): EtatPose {
   return { enMain: [...cartes], posees: [], total: 0, points: 0, terminee: false, explosee: false }
 }
 
-/** Les cartes qui ne feraient pas exploser la Pose. Purement consultatif : poser reste libre. */
+/**
+ * Les cartes qui ne feraient pas exploser la Pose, et que l'ordre impose autorise. Le seuil
+ * reste consultatif — poser au-dela est permis et fait exploser (carnet §1.3) — mais l'ordre
+ * de L'Ordonne, lui, est une interdiction : `poser` la refuse.
+ */
 export function indicesPosables(etat: EtatPose, regles: ReglesPose = REGLES_POSE): number[] {
   return etat.enMain
     .map((carte, index) => ({ carte, index }))
     .filter(({ carte }) => etat.total + valeurAdditive(carte) <= regles.seuil)
+    .filter(({ carte }) => respecteLOrdre(etat, carte, regles))
     .map(({ index }) => index)
+}
+
+/** L'Ordonne impose un rang strictement croissant. Sans lui, tout ordre est permis. */
+export function respecteLOrdre(etat: EtatPose, carte: Carte, regles: ReglesPose): boolean {
+  if (!regles.ordreCroissantImpose) return true
+  const derniere = etat.posees[etat.posees.length - 1]
+  return derniere === undefined || rangOrdinal(carte) > rangOrdinal(derniere)
 }
 
 /**
@@ -40,6 +52,9 @@ export function poser(
   if (etat.terminee) throw new Error('La Pose est terminee')
   const carte = etat.enMain[index]
   if (carte === undefined) throw new Error(`Aucune carte a l'index ${index}`)
+  if (!respecteLOrdre(etat, carte, regles)) {
+    throw new Error('L’ordre croissant est imposé cette Manche')
+  }
 
   const enMain = etat.enMain.filter((_, i) => i !== index)
   const posees = [...etat.posees, carte]

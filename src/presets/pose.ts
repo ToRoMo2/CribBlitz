@@ -14,6 +14,8 @@ export interface ReglesPose {
    * 30), donc ce bonus et la « derniere carte » se declenchent toujours ensemble.
    */
   readonly bonusSeuilParfait: number
+  /** L'Ordonne (§4.4) : chaque carte posee doit avoir un rang strictement superieur. */
+  readonly ordreCroissantImpose: boolean
 }
 
 export const REGLES_POSE: ReglesPose = {
@@ -27,4 +29,5 @@ export const REGLES_POSE: ReglesPose = {
   pointsSuiteParCarte: 1,
   pointsDerniereCarte: 1,
   bonusSeuilParfait: 0,
+  ordreCroissantImpose: false,
 }

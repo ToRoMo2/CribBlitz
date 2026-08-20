@@ -3,9 +3,12 @@ import { compterMain } from './compte.js'
 import type { Evenement } from './evenements.js'
 import {
   collecterEncaissement,
+  plierCheville,
   plierCombinaisons,
   plierConfigManche,
+  plierConfigPose,
   plierScore,
+  type CtxCheville,
   type Effet,
   type Modificateur,
 } from './modificateurs.js'
@@ -40,6 +43,7 @@ export function creerManche(
   const configEffective: ConfigPartie = {
     ...config,
     manche: plierConfigManche(modificateurs, config.manche),
+    pose: plierConfigPose(modificateurs, config.pose),
   }
   const { rng, melange } = melanger(creerRng(graine), paquet52())
   const distribution = tirer(melange, configEffective.manche.cartesParDonne)
@@ -156,7 +160,14 @@ function terminerDonne(state: EtatPartie, pose: EtatPose, events: Evenement[]): 
     state, state.donne.main, retourne, false, 'MAIN', state.config.multiplicateurMain, effets, events,
   )
   const scoreDonne = effectif + pose.points + state.donne.talons
-  const apres = faireAvancerLaCheville(state, scoreDonne, events)
+  const avance = faireAvancerLaCheville(state, scoreDonne, events)
+  // La cheville adverse reagit a la Donne qui vient de finir : Le Regulier avance toujours,
+  // Le Vorace bondit sur les gros scores, Le Tranchant sur les explosions (carnet §4.4).
+  const apres = faireAvancerLaCible(avance, {
+    donne: state.donne.numero,
+    scoreDeLaDonne: scoreDonne,
+    explosee: pose.explosee,
+  }, events)
 
   const resume: ResumeDonne = {
     numero: state.donne.numero,
@@ -249,6 +260,24 @@ function compterEtEmettre(
   events.push({ type: 'SCORE_CALCULE', points: contrib.points, mult: contrib.mult, score: effectif, origine })
 
   return { contrib, effectif }
+}
+
+function faireAvancerLaCible(
+  state: EtatPartie,
+  ctx: CtxCheville,
+  events: Evenement[],
+): EtatPartie {
+  const cible = plierCheville(state.modificateurs, state.cible, ctx)
+  if (cible === state.cible) return state
+
+  const adversaire = state.modificateurs.find((mod) => mod.famille === 'ADVERSAIRE')
+  events.push({
+    type: 'CIBLE_AVANCE',
+    de: state.cible,
+    a: cible,
+    adversaire: adversaire?.nom ?? 'l’Adversaire',
+  })
+  return { ...state, cible }
 }
 
 function faireAvancerLaCheville(
