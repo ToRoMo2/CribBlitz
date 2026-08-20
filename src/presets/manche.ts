@@ -22,6 +22,10 @@ export interface ReglesManche {
   readonly cibleAdversaire: number
   /** §4.3 dit « depasser », §4.5 implique que l'egalite gagne deja. On retient l'egalite. */
   readonly victoireSiEgalite: boolean
+  /** La Pince (§5.2) : la Retourne est revelee avant la defausse au lieu d'apres. */
+  readonly revelerRetourneAvantDefausse: boolean
+  /** Le Sourd (§4.4) : la Boite est scellee, les defausses sont perdues et rien n'est compte. */
+  readonly boiteScellee: boolean
 }
 
 export const REGLES_MANCHE: ReglesManche = {
@@ -39,4 +43,6 @@ export const REGLES_MANCHE: ReglesManche = {
   reporterLeReste: true,
   cibleAdversaire: 6,
   victoireSiEgalite: true,
+  revelerRetourneAvantDefausse: false,
+  boiteScellee: false,
 }

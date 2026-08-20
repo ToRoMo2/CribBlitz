@@ -1,22 +1,38 @@
 import { createInterface, type Interface } from 'node:readline'
 import process from 'node:process'
+import {
+  acheterRelique,
+  ameliorerVoie,
+  genererOffre,
+  nomVoie,
+  relancer,
+  type Offre,
+} from '../core/boutique.js'
 import { formatCarte, valeurAdditive } from '../core/carte.js'
 import type { Action, EtatPartie } from '../core/etat.js'
-import { creerManche, reduire } from '../core/manche.js'
 import { indicesPosables } from '../core/pose.js'
+import {
+  commencerMancheSuivante,
+  creerRun,
+  reduireRun,
+  type EtatRun,
+} from '../core/run.js'
 import {
   formatBilan,
   formatBoite,
+  formatEnTeteRun,
+  formatGains,
   formatMainIndexee,
+  formatOffre,
   formatPlateau,
   rendreEvenements,
 } from './format.js'
 
 /**
- * Une Manche jouable au clavier. Aucun rendu graphique, aucune animation : la CLI se
- * contente de rejouer le flux d'evenements du coeur. C'est le test permanent de
- * l'architecture — si un jour il faut du graphique pour jouer un tour, le coeur est
- * contamine.
+ * Une run de 3 Manches jouable au clavier : defausse, Pose, Compte, boutique entre les
+ * Manches, Adversaire sur la derniere, defaite possible. Aucun rendu graphique : la CLI
+ * rejoue le flux d'evenements du coeur. C'est le test permanent de l'architecture — s'il
+ * fallait du graphique pour jouer un tour, le coeur serait contamine.
  */
 
 class EntreeFermee extends Error {}
@@ -147,25 +163,106 @@ async function demanderPose(clavier: Clavier, state: EtatPartie): Promise<Action
   }
 }
 
-async function jouerUneManche(clavier: Clavier, graine: number): Promise<void> {
-  console.log('')
-  console.log(`════════ MANCHE (graine ${graine}) ════════`)
-  let { state, events } = creerManche(graine)
-  afficher(rendreEvenements(events))
-
-  while (state.phase !== 'MANCHE_TERMINEE') {
+/** Joue la Manche courante de la run jusqu'a son terme. */
+async function jouerLaManche(clavier: Clavier, run: EtatRun): Promise<EtatRun> {
+  console.log(formatEnTeteRun(run))
+  let courant = run
+  while (courant.statut === 'MANCHE') {
+    const state = courant.manche
     const action =
       state.phase === 'DEFAUSSE'
         ? await demanderDefausse(clavier, state)
         : await demanderPose(clavier, state)
-    const resultat = reduire(state, action)
-    state = resultat.state
+    const resultat = reduireRun(courant, action)
+    courant = resultat.run
     afficher(rendreEvenements(resultat.events))
   }
+  console.log(formatBilan(courant.manche))
+  return courant
+}
 
-  console.log(formatBilan(state))
+/** La boutique entre deux Manches : acheter des reliques, un niveau de Voie, relancer. */
+async function tenirBoutique(clavier: Clavier, run: EtatRun): Promise<EtatRun> {
+  if (run.dernierGain !== null) console.log(formatGains(run.dernierGain))
+
+  let courant = run
+  const genere = genererOffre(courant)
+  courant = { ...courant, rng: genere.rng }
+  let offre: Offre = genere.offre
+  const achetees = new Set<string>()
+  let voieAchetee = false
+
+  for (;;) {
+    console.log(formatOffre(offreRestante(offre, achetees), courant.argent, voieAchetee))
+    const reponse = (await clavier.demander('  > ')).trim().toLowerCase()
+    if (reponse.length === 0) return courant
+
+    if (reponse === 'x') {
+      try {
+        const relance = relancer(courant)
+        courant = relance.run
+        offre = relance.offre
+        achetees.clear()
+        voieAchetee = false
+      } catch {
+        console.log('  ✖ pas assez d’argent pour relancer.')
+      }
+      continue
+    }
+    if (reponse === 'v') {
+      if (voieAchetee) {
+        console.log('  ✖ un seul niveau de Voie par visite. Relance (x) pour une autre Voie.')
+        continue
+      }
+      try {
+        courant = ameliorerVoie(courant, offre.voie)
+        voieAchetee = true
+        console.log(`  ✔ Voie ${nomVoie(offre.voie.voie)} améliorée au niveau ${offre.voie.niveauActuel + 1}.`)
+      } catch {
+        console.log('  ✖ achat impossible.')
+      }
+      continue
+    }
+    if (reponse.startsWith('r')) {
+      const index = Number.parseInt(reponse.slice(1), 10)
+      const cible = offre.reliques[index]
+      if (cible === undefined || achetees.has(cible.relique.id)) {
+        console.log('  ✖ pas de relique à cet index.')
+        continue
+      }
+      try {
+        courant = acheterRelique(courant, cible)
+        achetees.add(cible.relique.id)
+        console.log(`  ✔ ${cible.relique.nom} équipée.`)
+      } catch {
+        console.log('  ✖ achat impossible (argent ou emplacement).')
+      }
+      continue
+    }
+    console.log('  ✖ commande inconnue.')
+  }
+}
+
+function offreRestante(offre: Offre, achetees: ReadonlySet<string>): Offre {
+  return { ...offre, reliques: offre.reliques.filter((o) => !achetees.has(o.relique.id)) }
+}
+
+async function jouerUneRun(clavier: Clavier, graine: number): Promise<boolean> {
   console.log('')
-  console.log(formatPlateau(state))
+  console.log(`════════ RUN (graine ${graine}) ════════`)
+  let { run } = creerRun(graine)
+
+  while (run.statut !== 'GAGNEE' && run.statut !== 'PERDUE') {
+    run = await jouerLaManche(clavier, run)
+    if (run.statut === 'BOUTIQUE') {
+      run = await tenirBoutique(clavier, run)
+      run = commencerMancheSuivante(run).run
+    }
+  }
+
+  console.log('')
+  console.log(run.statut === 'GAGNEE' ? '★★★ RUN GAGNÉE ★★★' : '✖ RUN PERDUE')
+  return run.statut === 'GAGNEE'
 }
 
 async function main(): Promise<void> {
@@ -174,9 +271,9 @@ async function main(): Promise<void> {
   let jouees = 0
   try {
     for (;;) {
-      await jouerUneManche(clavier, graine)
+      await jouerUneRun(clavier, graine)
       jouees += 1
-      const encore = await clavier.demander(`\nUne autre Manche ? (o/n) `)
+      const encore = await clavier.demander(`\nUne autre run ? (o/n) `)
       if (!encore.trim().toLowerCase().startsWith('o')) break
       graine += 1
     }
@@ -184,7 +281,7 @@ async function main(): Promise<void> {
     if (!(erreur instanceof EntreeFermee)) throw erreur
     console.log('\ninterrompu.')
   } finally {
-    console.log(`\n${jouees} Manche(s) jouée(s). Le critère d'arrêt en demande 20.`)
+    console.log(`\n${jouees} run(s) jouée(s). Le critère d'arrêt en demande 5.`)
     clavier.fermer()
   }
 }

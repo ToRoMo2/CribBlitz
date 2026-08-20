@@ -1,8 +1,8 @@
 import type { Carte } from './carte.js'
 import type { Evenement } from './evenements.js'
+import type { Modificateur } from './modificateurs.js'
 import type { EtatPose } from './pose.js'
 import type { Rng } from './rng.js'
-import type { ScoreCompte } from './voies.js'
 import type { ConfigPartie } from '../presets/index.js'
 
 export type Phase = 'DEFAUSSE' | 'POSE' | 'MANCHE_TERMINEE'
@@ -41,6 +41,8 @@ export interface ResumeDonne {
 
 export interface EtatPartie {
   readonly config: ConfigPartie
+  /** Reliques equipees + Adversaire courant. Fixe pour la Manche. Vide = comportement de base. */
+  readonly modificateurs: readonly Modificateur[]
   readonly rng: Rng
   readonly paquet: readonly Carte[]
   readonly boite: readonly Carte[]
@@ -50,7 +52,8 @@ export interface EtatPartie {
   readonly reste: number
   readonly cible: number
   readonly historique: readonly ResumeDonne[]
-  readonly scoreBoite: ScoreCompte | null
+  /** Score effectif de la Boite (hooks compris), disponible en fin de Manche. */
+  readonly scoreBoite: number | null
   readonly gagnee: boolean | null
 }
 

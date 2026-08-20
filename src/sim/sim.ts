@@ -1,6 +1,15 @@
 import process from 'node:process'
-import { CONFIG_PAR_DEFAUT } from '../presets/index.js'
-import { mesurerDesaccords, percentile, simuler, type Bilan, type Desaccords } from './harnais.js'
+import { CONFIG_PAR_DEFAUT, type ConfigPartie } from '../presets/index.js'
+import { RELIQUES } from '../reliques/catalogue.js'
+import {
+  mesurerDesaccords,
+  mesurerSynergie,
+  percentile,
+  simuler,
+  type Bilan,
+  type Desaccords,
+  type RapportSynergie,
+} from './harnais.js'
 import {
   OPTIONS_PAR_DEFAUT,
   STRATEGIES,
@@ -123,6 +132,56 @@ function afficherDesaccords(desaccords: Desaccords): void {
   )
 }
 
+function nomCourt(id: string): string {
+  return (RELIQUES.find((r) => r.id === id)?.nom ?? id).replace(/^L[e']?\s?|^La\s/, '')
+}
+
+/**
+ * Le verdict de l'etape 2 : pour chaque relique son apport, et pour chaque paire si le duo
+ * vaut plus que la somme (super-additif = un build). Si le meilleur achat depend du reste de
+ * l'equipement, un build emerge.
+ */
+function afficherSynergie(rapport: RapportSynergie): void {
+  console.log('')
+  console.log(`  score moyen d'une Manche sans relique : ${rapport.base.toFixed(0)}`)
+  console.log('')
+  console.log('  APPORT DE CHAQUE RELIQUE (seule)')
+  console.log('  ' + '─'.repeat(40))
+  const seules = [...rapport.uplifts.entries()].sort((a, b) => b[1] - a[1])
+  for (const [id, uplift] of seules) {
+    console.log(`  ${nomCourt(id).padEnd(16)} +${uplift.toFixed(0)}`)
+  }
+
+  console.log('')
+  console.log('  LES PAIRES LES PLUS SYNERGIQUES (duo − somme des deux seules)')
+  console.log('  ' + '─'.repeat(56))
+  const paires = [...rapport.paires].sort((a, b) => b.synergie - a.synergie)
+  for (const paire of paires.slice(0, 8)) {
+    const signe = paire.synergie >= 0 ? '+' : ''
+    console.log(
+      `  ${(nomCourt(paire.a) + ' + ' + nomCourt(paire.b)).padEnd(30)}` +
+        `duo +${paire.upliftDuo.toFixed(0).padStart(4)}   synergie ${signe}${paire.synergie.toFixed(0)}`,
+    )
+  }
+
+  console.log('')
+  console.log('  LES PAIRES LES PLUS ANTI-SYNERGIQUES')
+  console.log('  ' + '─'.repeat(56))
+  for (const paire of paires.slice(-3).reverse()) {
+    console.log(
+      `  ${(nomCourt(paire.a) + ' + ' + nomCourt(paire.b)).padEnd(30)}` +
+        `duo +${paire.upliftDuo.toFixed(0).padStart(4)}   synergie ${paire.synergie.toFixed(0)}`,
+    )
+  }
+
+  const positives = rapport.paires.filter((p) => p.synergie > rapport.base * 0.03).length
+  console.log('')
+  console.log('  ═══ LE VERDICT DE L’ÉTAPE 2 ═══')
+  console.log(`  ${positives} paire(s) sur ${rapport.paires.length} sont nettement super-additives.`)
+  console.log('  Si le meilleur achat dépend de l’équipement, un build émerge → réponse « oui ».')
+  console.log('  (La Pince : sa valeur est surtout informationnelle ; la mesure la sous-estime.)')
+}
+
 function main(): void {
   const manches = entierArgument('manches', 1000)
   const graine = entierArgument('graine', 1)
@@ -130,9 +189,23 @@ function main(): void {
   const noms = argument('strategies')?.split(',').map((nom) => nom.trim())
   const choisies = noms === undefined ? STRATEGIES : noms.map(strategieParNom)
   const options: OptionsStrategie = { retournesBoite }
+  const brutMult = argument('mult')
+  const multiplicateurMain = brutMult === undefined ? CONFIG_PAR_DEFAUT.multiplicateurMain : Number(brutMult)
+  const config: ConfigPartie = { ...CONFIG_PAR_DEFAUT, multiplicateurMain }
+
+  if (process.argv.includes('--synergie')) {
+    const mSyn = entierArgument('manches', 300)
+    const debutSyn = Date.now()
+    console.log('')
+    console.log('BOÎTE — synergie des reliques (étape 2)')
+    console.log(`${mSyn} Manches par configuration, stratégie de défausse fixe « totale ».`)
+    afficherSynergie(mesurerSynergie(RELIQUES, mSyn, graine, options, config))
+    console.log(`\n  (${((Date.now() - debutSyn) / 1000).toFixed(1)} s)\n`)
+    return
+  }
 
   const debut = Date.now()
-  const bilans = choisies.map((strategie) => simuler(strategie, manches, graine, options))
+  const bilans = choisies.map((strategie) => simuler(strategie, manches, graine, options, config))
   const duree = ((Date.now() - debut) / 1000).toFixed(1)
 
   console.log('')
@@ -142,13 +215,14 @@ function main(): void {
       `mêmes donnes pour toutes. ${retournesBoite} Retournes échantillonnées pour la Boîte.`,
   )
   console.log(
-    `cible de la Manche : Trou ${CONFIG_PAR_DEFAUT.manche.cibleAdversaire}   (${duree} s)`,
+    `cible Trou ${CONFIG_PAR_DEFAUT.manche.cibleAdversaire}   ` +
+      `multiplicateurMain ×${multiplicateurMain}   (${duree} s)`,
   )
 
   afficherTableau(bilans)
   afficherDistributions(bilans)
   afficherVerdict(bilans)
-  afficherDesaccords(mesurerDesaccords(manches, graine, options))
+  afficherDesaccords(mesurerDesaccords(manches, graine, options, config))
 
   console.log('')
   for (const strategie of choisies) {

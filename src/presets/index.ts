@@ -11,6 +11,12 @@ export interface ConfigPartie {
   readonly manche: ReglesManche
   readonly voies: Readonly<Record<TypeCombinaison, Voie>>
   readonly niveaux: NiveauxVoies
+  /**
+   * Rehausse le seul Compte de la main (jamais la Boite) pour que la defausse reste une
+   * decision tranchee : la simulation de l'etape 1 a montre qu'une Boite a 9 cartes ecrase
+   * les mains. Couche roguelike, au-dessus des valeurs de base du cribbage (carnet §1.4, §7).
+   */
+  readonly multiplicateurMain: number
 }
 
 export const CONFIG_PAR_DEFAUT: ConfigPartie = {
@@ -19,6 +25,10 @@ export const CONFIG_PAR_DEFAUT: ConfigPartie = {
   manche: REGLES_MANCHE,
   voies: VOIES,
   niveaux: NIVEAUX_INITIAUX,
+  // ×2 : point de croisement mesure ou suivre aveuglement « tout Boite » et « tout main »
+  // coute a peu pres pareil (~20 vs ~24 pts/Donne). Aucun reflexe ne domine : la defausse
+  // redevient une decision a deux faces. Voir le balayage de l'etape 2.
+  multiplicateurMain: 2,
 }
 
 export { REGLES_CRIBBAGE, REGLES_MANCHE, REGLES_POSE, VOIES, NIVEAUX_INITIAUX }

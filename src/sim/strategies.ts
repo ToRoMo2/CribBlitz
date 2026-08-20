@@ -36,9 +36,9 @@ export interface Strategie {
 export const STRATEGIES: readonly Strategie[] = [
   {
     nom: 'aleatoire',
-    description: 'defausse 2 cartes au hasard — le plancher',
+    description: 'defausse au hasard — le plancher',
     choisir: (state, rng) => {
-      const choix = combinaisonsDeDeux(state.donne.main.length)
+      const choix = combinaisonsDeK(state.donne.main.length, state.config.manche.defaussesParDonne)
       const tirage = entier(rng, choix.length)
       return { indices: choix[tirage.valeur] as readonly number[], rng: tirage.rng }
     },
@@ -91,13 +91,19 @@ export function evaluerChoix(
   const inconnues = state.paquet
   const { rng: apres, melange } = melanger(rng, inconnues)
   const echantillon = melange.slice(0, Math.min(options.retournesBoite, melange.length))
+  const k = state.config.manche.defaussesParDonne
 
-  const choix = combinaisonsDeDeux(main.length).map((indices) => {
+  // La Pince revele la Retourne avant la defausse : la strategie evalue alors la main avec
+  // la vraie Retourne au lieu d'une esperance. La Boite, comptee a la fin avec une autre
+  // Retourne, reste estimee par echantillon.
+  const retournesMain = state.donne.retourne !== null ? [state.donne.retourne] : inconnues
+
+  const choix = combinaisonsDeK(main.length, k).map((indices) => {
     const gardee = main.filter((_, index) => !indices.includes(index))
     const jetee = indices.map((index) => main[index] as Carte)
     return {
       indices,
-      esperanceMain: esperance(gardee, inconnues, false, state.config),
+      esperanceMain: esperance(gardee, retournesMain, false, state.config),
       esperanceBoite: esperance([...state.boite, ...jetee], echantillon, true, state.config),
     }
   })
@@ -137,10 +143,13 @@ function esperance(
   config: ConfigPartie,
 ): number {
   if (retournes.length === 0) return 0
+  // La strategie doit peser la main avec le meme multiplicateur que le moteur, sinon elle
+  // sous-evalue la main et choisit mal la defausse.
+  const multiplicateur = estBoite ? 1 : config.multiplicateurMain
   let somme = 0
   for (const retourne of retournes) {
     const combinaisons = compterMain(cartes, retourne, estBoite, config.cribbage)
-    somme += calculerScore(combinaisons, config.niveaux, config.voies).score
+    somme += calculerScore(combinaisons, config.niveaux, config.voies).score * multiplicateur
   }
   return somme / retournes.length
 }
@@ -167,10 +176,21 @@ export function choisirPose(state: EtatPartie): Action {
   return meilleur === null ? { type: 'ENCAISSER' } : { type: 'POSER', index: meilleur }
 }
 
-function combinaisonsDeDeux(taille: number): readonly (readonly number[])[] {
-  const paires: number[][] = []
-  for (let i = 0; i < taille; i++) {
-    for (let j = i + 1; j < taille; j++) paires.push([i, j])
+/** Tous les sous-ensembles de `k` indices parmi `taille` (les defausses possibles). */
+function combinaisonsDeK(taille: number, k: number): readonly (readonly number[])[] {
+  const resultat: number[][] = []
+  const courant: number[] = []
+  const explorer = (debut: number): void => {
+    if (courant.length === k) {
+      resultat.push([...courant])
+      return
+    }
+    for (let i = debut; i < taille; i++) {
+      courant.push(i)
+      explorer(i + 1)
+      courant.pop()
+    }
   }
-  return paires
+  explorer(0)
+  return resultat
 }

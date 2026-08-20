@@ -1,10 +1,12 @@
 import { creerManche, reduire } from '../core/manche.js'
+import type { Modificateur } from '../core/modificateurs.js'
 import { creerRng } from '../core/rng.js'
 import { CONFIG_PAR_DEFAUT, type ConfigPartie } from '../presets/index.js'
 import {
   choisirPose,
   evaluerChoix,
   meilleurSelon,
+  strategieParNom,
   type ChoixEvalue,
   type OptionsStrategie,
   type Strategie,
@@ -33,8 +35,9 @@ export function jouerManche(
   strategie: Strategie,
   options: OptionsStrategie,
   config: ConfigPartie = CONFIG_PAR_DEFAUT,
+  modificateurs: readonly Modificateur[] = [],
 ): MesuresManche {
-  let { state } = creerManche(graine, config)
+  let { state } = creerManche(graine, config, modificateurs)
   // Un PRNG distinct de celui du coeur : la strategie ne doit pas perturber la distribution.
   let rng = creerRng(graine * 7919 + 13)
 
@@ -49,7 +52,7 @@ export function jouerManche(
   }
 
   const scoresDonne = state.historique.map((donne) => donne.scoreDonne)
-  const scoreBoite = state.scoreBoite?.score ?? 0
+  const scoreBoite = state.scoreBoite ?? 0
   return {
     scoresMain: state.historique.map((donne) => donne.scoreMain),
     pointsMain: state.historique.map((donne) => donne.pointsMain),
@@ -219,4 +222,80 @@ export function percentile(valeurs: readonly number[], part: number): number {
   const triees = [...valeurs].sort((a, b) => a - b)
   const index = Math.min(triees.length - 1, Math.floor(part * (triees.length - 1)))
   return triees[index] as number
+}
+
+// ── La mesure de l'etape 2 : est-ce qu'un build emerge ? ──
+
+/** Score moyen d'une Manche pour un jeu de reliques equipe, a strategie de defausse fixe. */
+export function scoreMoyenAvec(
+  modificateurs: readonly Modificateur[],
+  manches: number,
+  graineDepart: number,
+  options: OptionsStrategie,
+  config: ConfigPartie = CONFIG_PAR_DEFAUT,
+): number {
+  const strategie = strategieParNom('totale')
+  let somme = 0
+  for (let i = 0; i < manches; i++) {
+    somme += jouerManche(graineDepart + i, strategie, options, config, modificateurs).totalManche
+  }
+  return somme / manches
+}
+
+export interface PaireSynergie {
+  readonly a: string
+  readonly b: string
+  readonly upliftA: number
+  readonly upliftB: number
+  readonly upliftDuo: number
+  /** upliftDuo - upliftA - upliftB. Positif = super-additif = un build. */
+  readonly synergie: number
+}
+
+export interface RapportSynergie {
+  readonly base: number
+  readonly uplifts: ReadonlyMap<string, number>
+  readonly paires: readonly PaireSynergie[]
+}
+
+/**
+ * Pour chaque relique, son apport seul ; pour chaque paire, l'apport du duo compare a la
+ * somme des deux apports. Une paire super-additive *est* un build : elle repond « oui » a la
+ * question de l'etape 2. Strategie de defausse fixe (« totale ») : on mesure l'effet des
+ * reliques, pas celui du joueur.
+ */
+export function mesurerSynergie(
+  reliques: readonly Modificateur[],
+  manches: number,
+  graineDepart: number,
+  options: OptionsStrategie,
+  config: ConfigPartie = CONFIG_PAR_DEFAUT,
+): RapportSynergie {
+  const base = scoreMoyenAvec([], manches, graineDepart, options, config)
+
+  const uplifts = new Map<string, number>()
+  for (const relique of reliques) {
+    uplifts.set(relique.id, scoreMoyenAvec([relique], manches, graineDepart, options, config) - base)
+  }
+
+  const paires: PaireSynergie[] = []
+  for (let i = 0; i < reliques.length; i++) {
+    for (let j = i + 1; j < reliques.length; j++) {
+      const a = reliques[i] as Modificateur
+      const b = reliques[j] as Modificateur
+      const duo = scoreMoyenAvec([a, b], manches, graineDepart, options, config) - base
+      const upliftA = uplifts.get(a.id) ?? 0
+      const upliftB = uplifts.get(b.id) ?? 0
+      paires.push({
+        a: a.id,
+        b: b.id,
+        upliftA,
+        upliftB,
+        upliftDuo: duo,
+        synergie: duo - upliftA - upliftB,
+      })
+    }
+  }
+
+  return { base, uplifts, paires }
 }

@@ -1,37 +1,61 @@
 import { estValet, paquet52, type Carte } from './carte.js'
 import { compterMain } from './compte.js'
 import type { Evenement } from './evenements.js'
+import {
+  collecterEncaissement,
+  plierCombinaisons,
+  plierConfigManche,
+  plierScore,
+  type Effet,
+  type Modificateur,
+} from './modificateurs.js'
 import { creerPose, encaisser, poser, type EtatPose } from './pose.js'
 import { creerRng, melanger } from './rng.js'
 import { avancer } from './trous.js'
-import { calculerScore, type ScoreCompte } from './voies.js'
-import type { Action, EtatPartie, Resultat, ResumeDonne } from './etat.js'
+import { calculerScore } from './voies.js'
+import type { Action, EtatDonne, EtatPartie, Resultat, ResumeDonne } from './etat.js'
 import { CONFIG_PAR_DEFAUT, type ConfigPartie } from '../presets/index.js'
 
 /**
  * Une Manche : 4 Donnes, la Boite qui accumule les defausses, et son Compte d'un seul coup
  * a la fin (carnet §3). Un seul paquet de 52 melange par Manche, tire sans remise.
+ *
+ * Les modificateurs (reliques equipees + Adversaire) s'inserent aux points de hook du
+ * pipeline. Le moteur ne connait aucun d'eux par son nom : il replie leurs fonctions.
  */
-export function creerManche(graine: number, config: ConfigPartie = CONFIG_PAR_DEFAUT): Resultat {
+export function creerManche(
+  graine: number,
+  config: ConfigPartie = CONFIG_PAR_DEFAUT,
+  modificateurs: readonly Modificateur[] = [],
+): Resultat {
+  // Les modificateurs transforment les regles de la Manche une fois, avant qu'elle commence.
+  const configEffective: ConfigPartie = {
+    ...config,
+    manche: plierConfigManche(modificateurs, config.manche),
+  }
   const { rng, melange } = melanger(creerRng(graine), paquet52())
-  const { tirees, reste } = tirer(melange, config.manche.cartesParDonne)
+  const distribution = tirer(melange, configEffective.manche.cartesParDonne)
+
+  const events: Evenement[] = [{ type: 'DONNE_DISTRIBUEE', donne: 1, cartes: distribution.tirees }]
+  const preparee = preparerDonne(1, distribution.tirees, distribution.reste, configEffective, events)
 
   const state: EtatPartie = {
-    config,
+    config: configEffective,
+    modificateurs,
     rng,
-    paquet: reste,
+    paquet: preparee.paquet,
     boite: [],
-    donne: donneNeuve(1, tirees),
+    donne: preparee.donne,
     phase: 'DEFAUSSE',
     trou: 0,
     reste: 0,
-    cible: config.manche.cibleAdversaire,
+    cible: configEffective.manche.cibleAdversaire,
     historique: [],
     scoreBoite: null,
     gagnee: null,
   }
 
-  return { state, events: [{ type: 'DONNE_DISTRIBUEE', donne: 1, cartes: tirees }] }
+  return { state, events }
 }
 
 /** La signature unique du coeur. Aucun rendu, aucune horloge, aucun Math.random. */
@@ -59,26 +83,29 @@ function defausser(state: EtatPartie, indices: readonly number[]): Resultat {
     return carte
   })
   const gardee = main.filter((_, index) => !indices.includes(index))
-  const boite = [...state.boite, ...defaussee]
+  // Le Sourd scelle la Boite : les defausses sont perdues.
+  const boite = state.config.manche.boiteScellee ? state.boite : [...state.boite, ...defaussee]
 
   const events: Evenement[] = [
     { type: 'CARTES_DEFAUSSEES', cartes: defaussee, tailleBoite: boite.length },
   ]
 
-  // La Retourne n'est revelee qu'apres la defausse : c'est le cribbage reel, et c'est ce qui
-  // fait du choix des 2 cartes un pari plutot qu'un calcul.
-  const { tirees, reste } = tirer(state.paquet, 1)
-  const retourne = tirees[0]
-  if (retourne === undefined) throw new Error('Paquet epuise')
-  events.push({ type: 'RETOURNE_REVELEE', carte: retourne })
-
-  const talons = estValet(retourne) ? state.config.cribbage.pointsTalons : 0
-  if (talons > 0) events.push({ type: 'TALONS', points: talons })
+  // La Retourne est deja revelee si La Pince est active ; sinon on la revele maintenant,
+  // apres la defausse — le cribbage reel, qui fait du choix des 2 cartes un pari.
+  let paquet = state.paquet
+  let retourne = state.donne.retourne
+  let talons = state.donne.talons
+  if (retourne === null) {
+    const revelation = revelerRetourne(paquet, state.config, events)
+    paquet = revelation.paquet
+    retourne = revelation.retourne
+    talons = revelation.talons
+  }
 
   return {
     state: {
       ...state,
-      paquet: reste,
+      paquet,
       boite,
       donne: {
         ...state.donne,
@@ -113,8 +140,14 @@ function terminerDonne(state: EtatPartie, pose: EtatPose, events: Evenement[]): 
   const retourne = state.donne.retourne
   if (retourne === null) throw new Error('Retourne absente')
 
-  const score = compterEtEmettre(state, state.donne.main, retourne, false, 'MAIN', events)
-  const scoreDonne = score.score + pose.points + state.donne.talons
+  // Le Cran d'Arret : la Pose terminee sans explosion produit un effet que le Compte qui
+  // suit — celui de cette meme Donne — consomme. Aucun etat inter-Donne n'est necessaire.
+  const effets = collecterEncaissement(state.modificateurs, { explosee: pose.explosee })
+
+  const { contrib, effectif } = compterEtEmettre(
+    state, state.donne.main, retourne, false, 'MAIN', state.config.multiplicateurMain, effets, events,
+  )
+  const scoreDonne = effectif + pose.points + state.donne.talons
   const apres = faireAvancerLaCheville(state, scoreDonne, events)
 
   const resume: ResumeDonne = {
@@ -123,9 +156,9 @@ function terminerDonne(state: EtatPartie, pose: EtatPose, events: Evenement[]): 
     gardee: state.donne.main,
     defaussee: state.donne.defaussee,
     retourne,
-    pointsMain: score.points,
-    multMain: score.mult,
-    scoreMain: score.score,
+    pointsMain: contrib.points,
+    multMain: contrib.mult,
+    scoreMain: effectif,
     pointsPose: pose.points,
     explosee: pose.explosee,
     talons: state.donne.talons,
@@ -143,21 +176,23 @@ function distribuerLaSuivante(state: EtatPartie, events: Evenement[]): Resultat 
   const numero = state.donne.numero + 1
   const { tirees, reste } = tirer(state.paquet, state.config.manche.cartesParDonne)
   events.push({ type: 'DONNE_DISTRIBUEE', donne: numero, cartes: tirees })
+  const preparee = preparerDonne(numero, tirees, reste, state.config, events)
   return {
-    state: { ...state, paquet: reste, donne: donneNeuve(numero, tirees), phase: 'DEFAUSSE' },
+    state: { ...state, paquet: preparee.paquet, donne: preparee.donne, phase: 'DEFAUSSE' },
     events,
   }
 }
 
 /**
  * Le climax de la Manche : 8 cartes accumulees plus la Retourne de la derniere Donne,
- * comptees d'un seul coup (carnet §3).
+ * comptees d'un seul coup (carnet §3). Boite scellee (Le Sourd) => vide => 0.
  */
 function compterLaBoite(state: EtatPartie, retourne: Carte, events: Evenement[]): Resultat {
-  const score = compterEtEmettre(state, state.boite, retourne, true, 'BOITE', events)
-  events.push({ type: 'BOITE_COMPTEE', cartes: state.boite, score: score.score })
+  // La Boite n'est jamais rehaussee : le multiplicateur ne touche que la main (carnet §7).
+  const { effectif } = compterEtEmettre(state, state.boite, retourne, true, 'BOITE', 1, [], events)
+  events.push({ type: 'BOITE_COMPTEE', cartes: state.boite, score: effectif })
 
-  const apres = faireAvancerLaCheville(state, score.score, events)
+  const apres = faireAvancerLaCheville(state, effectif, events)
   const gagnee = state.config.manche.victoireSiEgalite
     ? apres.trou >= apres.cible
     : apres.trou > apres.cible
@@ -167,19 +202,32 @@ function compterLaBoite(state: EtatPartie, retourne: Carte, events: Evenement[])
     cible: apres.cible,
   })
 
-  return { state: { ...apres, scoreBoite: score, phase: 'MANCHE_TERMINEE', gagnee }, events }
+  return { state: { ...apres, scoreBoite: effectif, phase: 'MANCHE_TERMINEE', gagnee }, events }
 }
 
+/**
+ * Un Compte complet : le comptage cribbage brut, les hooks des modificateurs
+ * (`surCombinaisons` puis `surScore`), la conversion en score, et l'emission des evenements.
+ */
 function compterEtEmettre(
   state: EtatPartie,
   cartes: readonly Carte[],
   retourne: Carte,
   estBoite: boolean,
   origine: 'MAIN' | 'BOITE',
+  multiplicateur: number,
+  effets: readonly Effet[],
   events: Evenement[],
-): ScoreCompte {
-  const combinaisons = compterMain(cartes, retourne, estBoite, state.config.cribbage)
+): { contrib: { points: number; mult: number }; effectif: number } {
+  const brutes = compterMain(cartes, retourne, estBoite, state.config.cribbage)
+  const combinaisons = plierCombinaisons(state.modificateurs, brutes, { origine, cartes, retourne })
   const score = calculerScore(combinaisons, state.config.niveaux, state.config.voies)
+  const contrib = plierScore(
+    state.modificateurs,
+    { points: score.points, mult: score.mult },
+    { origine, occurrences: score.occurrences, effets },
+  )
+  const effectif = Math.round(Math.round(contrib.points * contrib.mult) * multiplicateur)
 
   for (const occurrence of score.occurrences) {
     events.push({
@@ -189,21 +237,10 @@ function compterEtEmettre(
       origine,
     })
   }
-  events.push({
-    type: 'MULT_APPLIQUE',
-    mult: score.mult,
-    voies: score.voiesDeclenchees,
-    origine,
-  })
-  events.push({
-    type: 'SCORE_CALCULE',
-    points: score.points,
-    mult: score.mult,
-    score: score.score,
-    origine,
-  })
+  events.push({ type: 'MULT_APPLIQUE', mult: contrib.mult, voies: score.voiesDeclenchees, origine })
+  events.push({ type: 'SCORE_CALCULE', points: contrib.points, mult: contrib.mult, score: effectif, origine })
 
-  return score
+  return { contrib, effectif }
 }
 
 function faireAvancerLaCheville(
@@ -221,7 +258,40 @@ function faireAvancerLaCheville(
   return { ...state, trou: avancee.progression.trou, reste: avancee.progression.reste }
 }
 
-function donneNeuve(numero: number, cartes: readonly Carte[]): EtatPartie['donne'] {
+/** Prepare une Donne neuve ; revele la Retourne tout de suite si La Pince est active. */
+function preparerDonne(
+  numero: number,
+  cartes: readonly Carte[],
+  paquet: readonly Carte[],
+  config: ConfigPartie,
+  events: Evenement[],
+): { donne: EtatDonne; paquet: readonly Carte[] } {
+  const donne = donneNeuve(numero, cartes)
+  if (!config.manche.revelerRetourneAvantDefausse) return { donne, paquet }
+
+  const revelation = revelerRetourne(paquet, config, events)
+  return {
+    donne: { ...donne, retourne: revelation.retourne, talons: revelation.talons },
+    paquet: revelation.paquet,
+  }
+}
+
+function revelerRetourne(
+  paquet: readonly Carte[],
+  config: ConfigPartie,
+  events: Evenement[],
+): { retourne: Carte; paquet: readonly Carte[]; talons: number } {
+  const { tirees, reste } = tirer(paquet, 1)
+  const retourne = tirees[0]
+  if (retourne === undefined) throw new Error('Paquet epuise')
+  events.push({ type: 'RETOURNE_REVELEE', carte: retourne })
+
+  const talons = estValet(retourne) ? config.cribbage.pointsTalons : 0
+  if (talons > 0) events.push({ type: 'TALONS', points: talons })
+  return { retourne, paquet: reste, talons }
+}
+
+function donneNeuve(numero: number, cartes: readonly Carte[]): EtatDonne {
   return {
     numero,
     recue: cartes,

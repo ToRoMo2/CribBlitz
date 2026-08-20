@@ -1,8 +1,12 @@
+import type { Offre } from '../core/boutique.js'
 import { formatCarte, formatCartes, type Carte } from '../core/carte.js'
+import type { DetailGains } from '../core/economie.js'
 import type { Evenement, Origine } from '../core/evenements.js'
 import type { EtatPartie } from '../core/etat.js'
+import type { EtatRun } from '../core/run.js'
 import { coutDuTrou } from '../core/trous.js'
 import { VOIES } from '../presets/voies.js'
+import type { NiveauxVoies } from '../presets/voies.js'
 
 /**
  * La seule couche du projet qui met en forme du texte. Elle rejoue le flux d'evenements
@@ -144,10 +148,70 @@ export function formatBilan(state: EtatPartie): string {
   }
 
   const sommeMains = state.historique.reduce((total, donne) => total + donne.scoreDonne, 0)
-  const scoreBoite = state.scoreBoite?.score ?? 0
+  const scoreBoite = state.scoreBoite ?? 0
   const ratio = sommeMains === 0 ? '∞' : (scoreBoite / sommeMains).toFixed(2)
   lignes.push('  ' + '─'.repeat(68))
   lignes.push(`   les 4 Donnes : ${sommeMains}`)
   lignes.push(`   la Boîte     : ${scoreBoite}   (ratio Boîte / Donnes : ${ratio})`)
+  return lignes.join('\n')
+}
+
+function niveauxAffiches(niveaux: NiveauxVoies): string {
+  const ameliorees = Object.entries(niveaux)
+    .filter(([, niveau]) => niveau > 1)
+    .map(([voie, niveau]) => `${VOIES[voie as keyof typeof VOIES].nom} n${niveau}`)
+  return ameliorees.length === 0 ? 'aucune' : ameliorees.join(', ')
+}
+
+/** L'en-tete d'une Manche de run : progression, argent, reliques, Voies, Adversaire. */
+export function formatEnTeteRun(run: EtatRun): string {
+  const total = run.reglesRun.nombreDeManches
+  const numero = run.indexManche + 1
+  const estAdversaire = run.indexManche === run.reglesRun.indexAdversaire
+  const reliques = run.reliquesEquipees.length === 0
+    ? '(aucune)'
+    : run.reliquesEquipees.map((relique) => relique.nom).join(', ')
+
+  const lignes = [
+    '',
+    `╔═ MANCHE ${numero}/${total}${estAdversaire ? '  ★ ADVERSAIRE' : ''}` +
+      `   cible Trou ${run.reglesRun.cibles[run.indexManche]}   argent ${run.argent} ¤`,
+    `║ reliques (${run.reliquesEquipees.length}/${run.reglesRun.emplacementsReliques}) : ${reliques}`,
+    `║ Voies améliorées : ${niveauxAffiches(run.niveaux)}`,
+  ]
+  if (estAdversaire) lignes.push(`║ ⚠ ${run.adversaire.annonce}`)
+  else lignes.push(`║ Adversaire à venir (Manche ${run.reglesRun.indexAdversaire + 1}) : ${run.adversaire.annonce}`)
+  return lignes.join('\n')
+}
+
+export function formatGains(gain: DetailGains): string {
+  const morceaux = [`base ${gain.base}`]
+  if (gain.prime > 0) morceaux.push(`dépassement +${gain.prime}`)
+  if (gain.interet > 0) morceaux.push(`intérêts +${gain.interet}`)
+  if (gain.bonusModificateurs !== 0) morceaux.push(`reliques +${gain.bonusModificateurs}`)
+  return `  Gains : ${gain.total} ¤   (${morceaux.join(', ')})`
+}
+
+export function formatOffre(offre: Offre, argent: number, voieAchetee = false): string {
+  const lignes = ['', `  ══ BOUTIQUE ══   argent : ${argent} ¤`, '']
+  offre.reliques.forEach((offreRelique, index) => {
+    const marque = !offreRelique.placeDisponible
+      ? '(plus de place)'
+      : offreRelique.abordable ? '' : '(trop cher)'
+    lignes.push(`  [r${index}] ${offreRelique.relique.nom.padEnd(16)} ${offreRelique.cout} ¤ ${marque}`)
+    lignes.push(`        ${offreRelique.relique.description}`)
+  })
+  // Un seul niveau de Voie par passage en boutique (PROTOTYPE §Etape 2) : une fois acheté,
+  // l'option est consommée jusqu'à la prochaine relance.
+  if (voieAchetee) {
+    lignes.push(`  [v]  Voie ${VOIES[offre.voie.voie].nom} : déjà amélioré cette visite`)
+  } else {
+    lignes.push(
+      `  [v]  Voie ${VOIES[offre.voie.voie].nom} : niveau ${offre.voie.niveauActuel} → ` +
+        `${offre.voie.niveauActuel + 1}   ${offre.voie.cout} ¤ ${offre.voie.abordable ? '' : '(trop cher)'}`,
+    )
+  }
+  lignes.push(`  [x]  Relancer l'offre : ${offre.coutRelance} ¤`)
+  lignes.push('  [Entrée] Quitter la boutique et lancer la Manche suivante')
   return lignes.join('\n')
 }
