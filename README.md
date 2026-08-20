@@ -126,8 +126,26 @@ compte à votre place et surligne chaque combinaison au moment où il l'annonce.
 
 ## État du projet
 
-Prototype. Rien n'est écrit. Voir [`PROTOTYPE.md`](PROTOTYPE.md) pour le périmètre exact
-des deux premières étapes et les questions auxquelles elles doivent répondre.
+Prototype. Les trois étapes de [`PROTOTYPE.md`](PROTOTYPE.md) ont répondu oui.
+
+| Étape | Question | Verdict |
+|---|---|---|
+| **1** — le moteur et une Manche | la défausse est-elle un choix intéressant ? | oui, c'est une décision |
+| **2** — reliques et boutique | un build émerge-t-il ? veut-on relancer ? | oui, on relance |
+| **3** — le feel | le comptage se scande-t-il ? | oui |
+
+Le cœur (`src/core/`) est pur et testé. Il émet un flux ordonné d'événements que trois
+couches rejouent sans jamais le modifier : la CLI en texte, la simulation en chiffres, le
+navigateur en son et en image.
+
+```bash
+npm run dev     # une Manche jouable, avec le comptage scandé
+npm run cli     # une run de 3 Manches au clavier, boutique comprise
+npm run sim     # N Manches simulées, statistiques en sortie
+npm test        # les tests du cœur et de la partition
+```
+
+Le périmètre au-delà de l'étape 3 n'est pas encore écrit.
 
 ## Documents
 

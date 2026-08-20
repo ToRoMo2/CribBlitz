@@ -1,0 +1,360 @@
+/*
+ * Le strict necessaire pour lire la table et voir le comptage. Pas de direction artistique :
+ * l'etape 3 l'interdit explicitement. Une encre, un accent, et de la place pour le nombre.
+ */
+
+:root {
+  color-scheme: dark;
+  --fond: #14110f;
+  --encre: #efe6d8;
+  --sourdine: #8a7f70;
+  --trait: #3a322b;
+  --accent: #d9a441;
+  --rouge: #c9563c;
+  --carte: #221d19;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 1.5rem clamp(1rem, 3vw, 2.5rem) 3rem;
+  background: var(--fond);
+  color: var(--encre);
+  font: 15px/1.5 ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+}
+
+h1 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin: 0 0 1rem;
+}
+
+button {
+  font: inherit;
+  color: var(--encre);
+  background: var(--carte);
+  border: 1px solid var(--trait);
+  border-radius: 2px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+#table {
+  display: none;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 26rem);
+  gap: clamp(1rem, 3vw, 2.5rem);
+  align-items: start;
+}
+
+body.en-jeu #table {
+  display: grid;
+}
+
+@media (max-width: 860px) {
+  #table {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.etiquette {
+  color: var(--sourdine);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+
+section {
+  margin-bottom: 1.25rem;
+}
+
+#plateau {
+  color: var(--sourdine);
+  margin-bottom: 1.25rem;
+}
+
+#plateau .piste {
+  color: var(--encre);
+  letter-spacing: 0.08em;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+#bonus {
+  color: var(--accent);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.5rem;
+  min-height: 1.2em;
+}
+
+#donne {
+  color: var(--accent);
+  margin-bottom: 0.75rem;
+}
+
+/* ── les cartes ─────────────────────────────────────────────────────────── */
+
+.cartes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-height: 3.4rem;
+}
+
+.carte {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 2.6rem;
+  height: 3.4rem;
+  background: var(--carte);
+  border: 1px solid var(--trait);
+  border-radius: 3px;
+  line-height: 1.1;
+  user-select: none;
+  transition: transform 120ms ease, border-color 120ms ease;
+}
+
+.carte .rang {
+  font-weight: 600;
+}
+
+.carte .couleur {
+  font-size: 0.9em;
+}
+
+.carte.rouge {
+  color: var(--rouge);
+}
+
+.carte.dos {
+  color: var(--sourdine);
+  border-style: dashed;
+}
+
+.carte.jouable {
+  cursor: pointer;
+}
+
+.carte.jouable:hover {
+  border-color: var(--accent);
+  transform: translateY(-3px);
+}
+
+.carte.choisie {
+  border-color: var(--accent);
+  transform: translateY(-8px);
+}
+
+.carte.explosive {
+  opacity: 0.45;
+}
+
+.carte.armee {
+  opacity: 1;
+  border-color: var(--rouge);
+  color: var(--rouge);
+  transform: translateY(-8px);
+}
+
+/* Pendant la lecture du flux, la table ne repond plus : le comptage va au bout. */
+body.occupe #main .carte,
+body.occupe #actions button {
+  pointer-events: none;
+  opacity: 0.55;
+}
+
+.carte.entrante {
+  animation: entrer 220ms ease-out;
+}
+
+/* Le surlignage annonce par le carnet : la carte est marquee au moment ou on la nomme. */
+.carte.comptee {
+  animation: compter 260ms ease-out;
+}
+
+@keyframes entrer {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes compter {
+  0% {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 0 rgb(217 164 65 / 60%);
+    transform: translateY(-5px);
+  }
+  100% {
+    border-color: var(--trait);
+    box-shadow: 0 0 0 10px rgb(217 164 65 / 0%);
+    transform: translateY(0);
+  }
+}
+
+#posee.explosion {
+  animation: exploser 420ms ease-out;
+}
+
+@keyframes exploser {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  60% {
+    transform: translateX(5px);
+  }
+}
+
+#pose {
+  color: var(--sourdine);
+  margin-top: 0.4rem;
+}
+
+#actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+#encaisser {
+  display: none;
+}
+
+#actions.pose #encaisser {
+  display: inline-block;
+}
+
+#consigne {
+  color: var(--accent);
+}
+
+/* ── le comptage scande ─────────────────────────────────────────────────── */
+
+#compte {
+  border-left: 1px solid var(--trait);
+  padding-left: clamp(1rem, 2vw, 2rem);
+  min-height: 24rem;
+}
+
+#compte-titre {
+  color: var(--sourdine);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 12px;
+  min-height: 1.2em;
+}
+
+#compte-lignes {
+  max-height: 15rem;
+  overflow-y: auto;
+  margin: 0.75rem 0;
+}
+
+#compte-lignes .ligne {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--sourdine);
+}
+
+#compte-lignes .ligne.accent {
+  color: var(--encre);
+}
+
+#compte-lignes .cartes-comptees {
+  opacity: 0.6;
+}
+
+.somme {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  font-variant-numeric: tabular-nums;
+}
+
+#compte-total {
+  font-size: 2.6rem;
+  line-height: 1;
+}
+
+#compte-mult {
+  color: var(--accent);
+  font-size: 1.4rem;
+}
+
+#compte-bonus {
+  color: var(--sourdine);
+  font-size: 1.1rem;
+}
+
+/*
+ * La boite du nombre final. Elle est volontairement trop petite : le nombre en sort, et
+ * il en sort d'autant plus qu'il est gros.
+ */
+#compte-boite {
+  margin: 1.5rem auto 0;
+  border: 1px solid var(--trait);
+  width: 12rem;
+  height: 5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+#compte-score {
+  --debordement: 1;
+  font-size: calc(2.6rem * var(--debordement));
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+#compte-score.tombe {
+  animation: abattre 480ms cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+
+@keyframes abattre {
+  0% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+  55% {
+    transform: scale(0.92);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+#depart {
+  max-width: 60ch;
+}
+
+#depart p {
+  color: var(--sourdine);
+}
+
+body.en-jeu #depart p {
+  display: none;
+}

@@ -5,11 +5,12 @@
   "type": "module",
   "description": "Prototype d'un roguelike de score en solo bati sur le cribbage",
   "scripts": {
+    "dev": "vite",
     "cli": "tsx src/sim/cli.ts",
     "sim": "tsx src/sim/sim.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p src/rendu"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

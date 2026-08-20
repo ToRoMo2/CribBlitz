@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Boîte — le comptage scandé</title>
+    <link rel="stylesheet" href="/src/rendu/styles.css" />
+  </head>
+  <body>
+    <h1>Boîte — une Manche</h1>
+
+    <div id="depart">
+      <p>
+        Quatre Donnes, la Boîte qui accumule, et son Compte d'un seul coup à la fin. La run
+        complète et la boutique restent à la ligne de commande&nbsp;: ici, on écoute le
+        comptage.
+      </p>
+      <button id="commencer">commencer</button>
+    </div>
+
+    <main id="table">
+      <div>
+        <div id="plateau"></div>
+        <div id="bonus"></div>
+        <div id="donne"></div>
+
+        <section>
+          <div class="etiquette">Boîte</div>
+          <div id="boite" class="cartes"></div>
+        </section>
+
+        <section>
+          <div class="etiquette">Retourne</div>
+          <div id="retourne" class="cartes"></div>
+        </section>
+
+        <section>
+          <div class="etiquette">Pose</div>
+          <div id="posee" class="cartes"></div>
+          <div id="pose"></div>
+        </section>
+
+        <section>
+          <div class="etiquette">Main</div>
+          <div id="main" class="cartes"></div>
+        </section>
+
+        <div id="actions">
+          <span id="consigne"></span>
+          <button id="encaisser">encaisser</button>
+        </div>
+      </div>
+
+      <aside id="compte">
+        <div id="compte-titre"></div>
+        <div id="compte-lignes"></div>
+        <div class="somme">
+          <span id="compte-total"></span>
+          <span id="compte-mult"></span>
+          <span id="compte-bonus"></span>
+        </div>
+        <div id="compte-boite">
+          <div id="compte-score"></div>
+        </div>
+      </aside>
+    </main>
+
+    <script type="module" src="/src/rendu/main.ts"></script>
+  </body>
+</html>
