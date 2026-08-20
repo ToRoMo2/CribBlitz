@@ -1,9 +1,11 @@
 /**
  * La structure d'une Manche et le plateau (carnet §3, §4.2, §4.3).
  *
- * [À CALIBRER PAR SIMULATION] — les couts de Trou et la cible sont recopies du carnet tels
- * quels. Le carnet lui-meme les donne comme des points de depart : c'est le harnais de
- * simulation qui doit dire s'ils tiennent, pas ce fichier.
+ * Les couts de Trou sont CALIBRES (etape 4, `npm run sim -- --runs`). Le carnet les donnait
+ * comme un point de depart, et la mesure a montre qu'ils ne tenaient pas : les scores
+ * atteignables croissent d'un facteur 17 sur une run, la courbe du carnet d'un facteur 275.
+ * La Rue I se traversait en une Manche et demie, les Rues III et IV etaient infranchissables
+ * — personne ne gagnait.
  */
 export interface PalierTrou {
   readonly jusquAuTrou: number
@@ -32,12 +34,25 @@ export const REGLES_MANCHE: ReglesManche = {
   nombreDeDonnes: 4,
   cartesParDonne: 6,
   defaussesParDonne: 2,
+  /**
+   * Calibre par iteration : le cout de chaque Rue vise ~10 Trous par Manche, soit le rythme
+   * de la cheville adverse, puis l'echelle d'ensemble a ete cherchee sur le taux de victoire.
+   *
+   * Mesure a 60 runs par politique d'achat : n'acheter rien = 0 % (mort a la Manche 5),
+   * n'acheter que des Voies = 0 %, que des reliques = 7 %, tout acheter = 50 %. La survie par
+   * Rue fait 100 / 100 / 92 / 50 % : la Rue IV redevient le mur qu'elle doit etre.
+   *
+   * Chaque Rue coute ~2,3x la precedente. C'est moins raide que le carnet, et c'est le prix
+   * a payer pour que la piste soit franchissable avec le contenu qui existe.
+   */
   coutsDesTrous: [
-    { jusquAuTrou: 30, cout: 8 },
-    { jusquAuTrou: 60, cout: 45 },
-    { jusquAuTrou: 90, cout: 300 },
-    { jusquAuTrou: 120, cout: 2200 },
-    { jusquAuTrou: 121, cout: 18000 },
+    { jusquAuTrou: 30, cout: 30 },
+    { jusquAuTrou: 60, cout: 135 },
+    { jusquAuTrou: 90, cout: 320 },
+    { jusquAuTrou: 120, cout: 720 },
+    // Le dernier Trou coute plus cher que les autres (carnet §4.2) : 2,8 Trous de Rue IV.
+    // A 60 runs, il tue a lui seul 8 des 30 runs qui l'atteignent.
+    { jusquAuTrou: 121, cout: 2000 },
   ],
   trouFinal: 121,
   reporterLeReste: true,
