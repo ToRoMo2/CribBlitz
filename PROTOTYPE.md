@@ -126,6 +126,72 @@ Rien d'autre. Pas de menu, pas de sauvegarde, pas de direction artistique.
 
 ---
 
+# ÉTAPE 4 — La run entière
+
+**Durée visée : 3 à 4 jours, dont l'essentiel en simulation et non en code.**
+
+### La question
+
+> **Est-ce qu'atteindre le Trou 121 exige d'avoir cassé quelque chose — sans jamais être
+> hors d'atteinte ?**
+
+Les trois premières étapes ont mesuré une Donne, une Manche, puis trois Manches. La courbe
+de progression, elle, n'a jamais été observée : on n'a jamais dépassé le Trou 34, sur une
+piste qui en compte 121, et les paliers à 300 et 2 200 points par Trou n'ont jamais été
+franchis par personne.
+
+C'est la dernière question structurelle. Après elle, il ne reste que du contenu.
+
+### Ce qui est dans le périmètre
+
+**1. Les 4 Rues, 12 Manches** — la carte de run du carnet §4.1, telle quelle.
+
+**2. Les 8 Adversaires du carnet §4.4.** Six restent à écrire. Chacun **casse une règle**, aucun
+ne gonfle un chiffre. Ce sont des données, comme les reliques : un fichier par Adversaire,
+aucun `switch` sur un identifiant.
+
+**3. La calibration par simulation des coûts de Trou (§4.2) et des cibles (§4.3).** C'est le
+vrai travail de l'étape, et il se fait en chiffres, pas en code. Les deux tableaux sont
+marqués **[À CALIBRER]** dans le carnet depuis le premier jour.
+
+**4. Trancher la question ouverte §8.5** : que se passe-t-il si la cheville dépasse 121 en
+cours de Rue.
+
+**5. Le harnais étendu aux runs complètes.** Il joue N runs de 12 Manches et sort : taux de
+victoire, Manche de mort, marge par rapport à la cible, ratio score / coût du Trou par Rue.
+
+**6. Toujours la CLI pour jouer une run.** Le navigateur reste sur une Manche : il sert à
+écouter le comptage, pas à jouer la run.
+
+### Ce qui est HORS périmètre
+
+Aucune relique au-delà des 8 — on ne calibre pas une courbe contre un catalogue qui bouge.
+Pas de deckbuilding. Pas de direction artistique, pas de nom. Aucun rendu au-delà de ce qui
+existe. Pas de sauvegarde.
+
+### Ce qu'il faut mesurer
+
+| Mesure | Pourquoi |
+|---|---|
+| Taux de victoire d'une run complète | doit être bas, et non nul |
+| La Manche où les runs meurent | si elles meurent toutes à la même, c'est un mur, pas une courbe |
+| Marge médiane entre la cheville du joueur et la cible | elle doit se resserrer Rue après Rue |
+| Ratio score de Manche / coût du Trou, par Rue | **le risque n°1** : la courbe exponentielle doit rester rattrapable |
+| Écart entre une run jouée au mieux et une run jouée au hasard | la mesure de l'étape 1, à l'échelle de la run |
+
+La quatrième ligne est le vrai verdict. Un Trou de Rue IV coûte 2 200 points quand une
+Manche non améliorée en rapporte 60. Le facteur est de 36 : soit les reliques et les Voies
+le comblent, soit la Rue IV est décorative.
+
+### Critère d'arrêt
+
+Jouer **3 runs complètes de 12 Manches**. Deux signaux :
+
+- **Bon signal :** on perd, on sait exactement à quelle Manche et pourquoi, et on relance
+  en visant un autre build.
+- **Mauvais signal :** on gagne sans réfléchir, ou on meurt toujours à la même Manche quoi
+  qu'on achète. Dans les deux cas c'est la courbe qu'il faut refaire, pas le contenu.
+
 ## Ce qu'on ne fait sous aucun prétexte avant l'étape 3
 
 - Écrire plus de 8 reliques
