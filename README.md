@@ -126,26 +126,30 @@ compte à votre place et surligne chaque combinaison au moment où il l'annonce.
 
 ## État du projet
 
-Prototype. Les trois étapes de [`PROTOTYPE.md`](PROTOTYPE.md) ont répondu oui.
+Prototype. Les trois premières étapes de [`PROTOTYPE.md`](PROTOTYPE.md) ont répondu oui ;
+la quatrième est en cours.
 
 | Étape | Question | Verdict |
 |---|---|---|
 | **1** — le moteur et une Manche | la défausse est-elle un choix intéressant ? | oui, c'est une décision |
 | **2** — reliques et boutique | un build émerge-t-il ? veut-on relancer ? | oui, on relance |
 | **3** — le feel | le comptage se scande-t-il ? | oui |
+| **4** — la run entière | le Trou 121 exige-t-il d'avoir cassé quelque chose ? | en cours |
 
 Le cœur (`src/core/`) est pur et testé. Il émet un flux ordonné d'événements que trois
 couches rejouent sans jamais le modifier : la CLI en texte, la simulation en chiffres, le
 navigateur en son et en image.
 
 ```bash
-npm run dev     # une Manche jouable, avec le comptage scandé
-npm run cli     # une run de 3 Manches au clavier, boutique comprise
-npm run sim     # N Manches simulées, statistiques en sortie
-npm test        # les tests du cœur et de la partition
+npm run dev              # une Manche jouable, avec le comptage scandé
+npm run cli              # une run de 12 Manches au clavier, boutique comprise
+npm run sim -- --runs    # N runs entières simulées : la mesure de l'étape 4
+npm test                 # les tests du cœur et de la partition
 ```
 
-Le périmètre au-delà de l'étape 3 n'est pas encore écrit.
+L'étape 4 a construit la run entière — plateau persistant de 121 Trous, 4 Rues, les 8
+Adversaires — et calibré la courbe des coûts par simulation. Il lui reste son critère
+d'arrêt : **3 runs complètes jouées à la main**.
 
 ## Documents
 

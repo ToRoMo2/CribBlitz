@@ -266,31 +266,60 @@ Trous, le reste est reporté sur la Donne suivante.
 
 | Trous | Coût par Trou | Rue |
 |---|---|---|
-| 1 – 30 | 8 | I |
-| 31 – 60 | 45 | II |
-| 61 – 90 | 300 | III |
-| 91 – 120 | 2 200 | IV |
-| 121 | 18 000 | — |
+| 1 – 30 | **30** | I |
+| 31 – 60 | **135** | II |
+| 61 – 90 | **320** | III |
+| 91 – 120 | **720** | IV |
+| 121 | **2 000** | — |
 
-**[À CALIBRER PAR SIMULATION.]** Repère de départ : une Donne non améliorée rapporte
-environ 10 points de Compte + 4 de Pose ; une Manche entière, environ 60 points avec la
-Boîte. Soit ~7 Trous en Rue I. Les cibles ci-dessous doivent en découler.
+**CALIBRÉ à l'étape 4** (`npm run sim -- --runs`). La première colonne disait 8 / 45 / 300 /
+2 200 / 18 000 : c'était un point de départ, et la mesure l'a démenti. Les scores
+atteignables croissent d'un facteur **17** sur une run ; cette courbe-là croissait d'un
+facteur **275**. La Rue I se traversait en une Manche et demie, les Rues III et IV étaient
+infranchissables, et **personne n'atteignait le Trou 121**.
+
+La courbe retenue monte de ~2,3× par Rue. C'est moins raide que l'ambition initiale, et
+c'est le prix à payer pour que la piste soit franchissable avec le contenu qui existe. Si
+un jour les reliques font croître les scores bien plus vite, cette courbe devra remonter.
+
+Méthode : itérer le coût de chaque Rue jusqu'à ce qu'elle rende ~10 Trous par Manche — le
+rythme de la cheville adverse — puis chercher l'échelle d'ensemble sur le taux de victoire.
+
+Mesure à 60 runs, par politique d'achat automatique :
+
+| Politique | % gagné | Trou médian |
+|---|---|---|
+| n'achète rien | 0 % | 41 (mort Manche 5) |
+| Voies seules | 0 % | 66 |
+| reliques seules | 22 % | 98 |
+| achète tout | **58 %** | 121 |
+
+Ne pas acheter, c'est mourir : la boutique n'est pas un supplément.
 
 ### 4.3 Les cibles
 
 Pour valider une Manche, la cheville du joueur doit dépasser la cheville de l'Adversaire.
 
-| Manche | Cheville Adversaire au Trou | Type |
-|---|---|---|
-| 1 | 6 | Petite |
-| 2 | 14 | Grande |
-| 3 | 24 | Adversaire |
-| 4 | 34 | Petite |
-| … | … | … |
-| 12 | 121 | Adversaire final |
+| Manche | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| **Trou** | 6 | 14 | 24 | 34 | 45 | 57 | 68 | 78 | 88 | 98 | 109 | **121** |
+| | | | ★ | | | ★ | | | ★ | | | ★ |
 
-**[À CALIBRER.]** Le principe : la cheville adverse **est** le quota, et elle est visible
-sur le plateau en permanence. Aucune interface de quota à inventer.
+★ = Manche d'Adversaire, la dernière de chaque Rue.
+
+Le principe : la cheville adverse **est** le quota, et elle est visible sur le plateau en
+permanence. Aucune interface de quota à inventer.
+
+Ce sont des **positions absolues** sur une piste unique, pas des quotas par Manche : la
+cheville du joueur ne repart jamais de zéro. Valider une Manche, c'est avoir dépassé la
+cheville adverse là où elle est postée. Elle avance d'une dizaine de Trous par Manche ;
+une Rue dont on ne tire pas au moins autant est un mur, pas une courbe.
+
+**Question ouverte soulevée par la mesure :** avec la courbe calibrée, environ 60 % des
+runs gagnantes franchissent le Trou 121 **avant la Manche 10**, par la règle du §8.5. Les
+vainqueurs ne rencontrent donc jamais l'Adversaire de la Rue IV, et la structure en 12
+Manches devient partiellement décorative. Ralentir la cheville demanderait de remonter les
+coûts, ce qui ferait s'effondrer le taux de victoire. Arbitrage non tranché.
 
 ### 4.4 Les Adversaires
 
@@ -305,11 +334,24 @@ la boutique précédente pour qu'on puisse acheter contre.
 | **L'Avare** | vous ne recevez que 5 cartes par Donne au lieu de 6 |
 | **Le Vorace** | il bondit de 5 Trous chaque fois que vous marquez plus de 100 |
 | **Le Tranchant** | explosion à la Pose = il avance de 8 Trous |
-| **Le Bavard** | la Retourne est révélée après la défausse, pas avant |
+| **Le Bavard** | la Retourne ne compte dans aucune combinaison |
 | **L'Ordonné** | la Pose doit être en ordre croissant strict |
 
 Chacun **casse une règle** au lieu de gonfler un chiffre. Même philosophie que les Épreuves
 d'Awoo, et elle est bonne.
+
+Les huit sont écrits (étape 4), un fichier chacun sous `src/adversaires/`. Trois d'entre eux
+— Le Régulier, Le Vorace, Le Tranchant — déplacent la cheville adverse en cours de Manche
+via le hook `surCheville` ; l'événement `CIBLE_AVANCE` l'annonce, parce qu'une ligne
+d'arrivée qui recule en silence trahirait le §4.4.
+
+**Le Bavard a changé d'effet.** Il était décrit comme « la Retourne est révélée après la
+défausse, pas avant » — mais c'est **déjà le comportement par défaut** depuis l'étape 1 : le
+carnet supposait l'inverse. Tel qu'écrit, il ne faisait rien, et inverser la règle ne donne
+rien non plus, la Pose n'utilisant pas la Retourne. Effet retenu, dans le même esprit : il
+parle par-dessus la carte commune, et **la Retourne ne participe à aucune combinaison**.
+C'est la règle la plus profonde du §1.2 qui saute. La Couleur est rétrogradée d'une carte au
+lieu d'être supprimée, sinon une Retourne assortie ferait *baisser* la valeur d'une couleur.
 
 ### 4.5 Économie
 
@@ -394,11 +436,28 @@ trois autres couleurs. La mécanique de deckbuilding est déjà écrite dans les
 
 ## 8. Questions ouvertes
 
-1. La Boîte est-elle visible pendant la Manche ? *(recommandation : oui)*
-2. La Retourne est-elle unique par Donne ou unique par Manche ? *(recommandation : par
-   Donne — c'est l'injecteur de variance principal)*
-3. La Pose est-elle obligatoire ou optionnelle chaque Donne ?
-4. Le report de points non convertis entre Donnes : oui ou perte sèche ?
-5. Que se passe-t-il si la cheville dépasse 121 en cours de Rue ? *(recommandation : on
-   gagne, la run s'arrête, mode infini au-delà)*
-6. Nom du jeu. « Boîte » est un nom de code.
+### Tranchées
+
+1. **La Boîte est-elle visible pendant la Manche ?** → **Oui, face visible.** Voir la bombe
+   se construire alimente l'anticipation à chaque défausse.
+2. **La Retourne est-elle unique par Donne ou par Manche ?** → **Par Donne.** C'est
+   l'injecteur de variance principal. Un paquet de 52 est mélangé par Manche et tiré sans
+   remise, donc les Retournes d'une même Manche sont toutes différentes.
+4. **Le report des points non convertis entre Donnes ?** → **Oui, reporté** (`reporterLeReste`).
+   C'est ce qui rend une petite Donne utile. Depuis l'étape 4, le report franchit aussi les
+   Manches, puisque la piste est continue.
+5. **Que se passe-t-il si la cheville dépasse 121 en cours de Rue ?** → **On gagne, la run
+   s'arrête.** Mesuré à l'étape 4 : ça arrive souvent — environ 60 % des runs gagnantes
+   finissent avant la Manche 10. Voir la question soulevée au §4.3.
+
+### Encore ouvertes
+
+3. **La Pose est-elle obligatoire ou optionnelle chaque Donne ?** Aujourd'hui elle est
+   obligatoire : on peut encaisser à tout moment, mais pas la sauter.
+6. **Nom du jeu.** « Boîte » reste un nom de code.
+7. **L'Adversaire de la Rue IV est-il jouable ?** Soulevée par la mesure de l'étape 4 : les
+   vainqueurs franchissent souvent la ligne avant de l'affronter (§4.3).
+8. **Le `multiplicateurMain`** (×2 sur le seul Compte de la main, calibré à l'étape 1) ne
+   figure pas dans la formule du §2.1. Décision provisoire : il est affiché comme un **bonus
+   permanent**, annoncé avant le comptage. Reste à décider s'il doit être fondu dans les
+   niveaux de Voie, devenir un bonus de Mult, ou rester un troisième facteur.

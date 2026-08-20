@@ -52,12 +52,18 @@ jamais le cœur, et le moteur ne fait **aucun `switch` sur un identifiant**.
 ## Arborescence
 
 ```
-src/core/       le moteur : cribbage, score, manche, pose. Pur et testé.
-src/reliques/   le catalogue des reliques (données)
-src/presets/    tous les chiffres du jeu
-src/sim/        la CLI jouable et le harnais de simulation
-tests/          les tests du cœur — dont l'oracle de comptage
+src/core/         le moteur : cribbage, score, manche, pose, run. Pur et testé.
+src/reliques/     le catalogue des reliques (données)
+src/adversaires/  le catalogue des Adversaires (mêmes hooks que les reliques)
+src/presets/      tous les chiffres du jeu, scansion comprise
+src/sim/          la CLI jouable et les harnais de simulation
+src/rendu/        la couche navigateur : partition, audio, scène, comptage
+tests/            les tests du cœur — dont l'oracle de comptage
 ```
+
+**`src/rendu/` a son propre `tsconfig.json`**, seul à exposer la lib `DOM` ; la racine
+l'exclut. Écrire `document` dans `src/core/` ne compile donc pas : la règle 1 est tenue par
+le compilateur, pas seulement par la discipline. `npm run typecheck` vérifie les deux.
 
 ## Stack
 
@@ -67,11 +73,18 @@ de rendu.
 ## Commandes
 
 ```bash
-npm run cli        # une Manche jouable au clavier
+npm run dev        # le navigateur : une Manche jouable, avec le comptage scandé
+npm run cli        # une run de 12 Manches au clavier, boutique comprise
 npm run sim        # N Manches simulées, statistiques en sortie
-npm test           # les tests du cœur
+npm run sim -- --runs       # N runs entières : la mesure de l'étape 4
+npm run sim -- --synergie   # la matrice de synergie des reliques (étape 2)
+npm test           # les tests du cœur et de la partition
 npm run typecheck
 ```
+
+Le serveur de dev est **obligatoire** pour les pages : ouvrir `index.html` ou `banc.html`
+en `file://` donne une page vide, le TypeScript n'étant compilé que par Vite.
+`banc.html` est le banc d'essai à curseurs de la scansion.
 
 ---
 
@@ -99,7 +112,8 @@ npm run typecheck
 - Ne pas ajouter de contenu (reliques, adversaires, Voies) au-delà du périmètre de l'étape
   en cours défini dans `PROTOTYPE.md`.
 - Ne pas modifier les valeurs de base du cribbage. Une quinzaine vaut 2. Toujours.
-- Ne pas écrire de rendu graphique avant l'étape 3.
+- Ne pas toucher aux réglages de `src/presets/scansion.ts` : ils ont été validés à
+  l'oreille. Les changer demande une raison mesurée.
 - Ne pas « améliorer » le design sans le dire. Si une règle du carnet semble mauvaise à
   l'implémentation, **le signaler et proposer**, ne pas dévier en silence.
 - Ne pas optimiser. Le prototype tourne sur des mains de 9 cartes ; la force brute suffit
