@@ -285,7 +285,14 @@ function faireAvancerLaCheville(
   score: number,
   events: Evenement[],
 ): EtatPartie {
-  const avancee = avancer({ trou: state.trou, reste: state.reste }, score, state.config.manche)
+  // La cible vivante, pas celle du depart : trois Adversaires la deplacent en cours de
+  // Manche, et le plafond doit suivre la ligne d'arrivee, pas son souvenir.
+  const avancee = avancer(
+    { trou: state.trou, reste: state.reste },
+    score,
+    state.config.manche,
+    state.cible,
+  )
   events.push({
     type: 'CHEVILLE_AVANCE',
     de: state.trou,

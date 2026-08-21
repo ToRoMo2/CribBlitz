@@ -28,6 +28,11 @@ export interface ReglesManche {
   readonly revelerRetourneAvantDefausse: boolean
   /** Le Sourd (§4.4) : la Boite est scellee, les defausses sont perdues et rien n'est compte. */
   readonly boiteScellee: boolean
+  /**
+   * Combien de Trous la cheville peut depasser la cible avant de se bloquer pour la Manche.
+   * `null` = aucun plafond, la piste seule arbitre (carnet §8.5).
+   */
+  readonly plafondAuDelaDeLaCible: number | null
 }
 
 export const REGLES_MANCHE: ReglesManche = {
@@ -60,4 +65,5 @@ export const REGLES_MANCHE: ReglesManche = {
   victoireSiEgalite: true,
   revelerRetourneAvantDefausse: false,
   boiteScellee: false,
+  plafondAuDelaDeLaCible: null,
 }

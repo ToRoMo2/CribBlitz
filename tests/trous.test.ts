@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { avancer, coutDuTrou } from '../src/core/trous.js'
+import { avancer, coutDuTrou, plafondDeLaManche } from '../src/core/trous.js'
 import { REGLES_MANCHE } from '../src/presets/manche.js'
 
 describe('le cout des Trous [carnet §4.2]', () => {
@@ -62,5 +62,45 @@ describe('la conversion en Trous', () => {
     const avancee = avancer({ trou: 0, reste: 0 }, 80, sansReport)
     expect(avancee.progression.trou).toBe(2)
     expect(avancee.progression.reste).toBe(0)
+  })
+})
+
+describe('le plafond d’avance [carnet §4.3, question §8.7]', () => {
+  const avecPlafond = { ...REGLES_MANCHE, cibleAdversaire: 6, plafondAuDelaDeLaCible: 6 }
+
+  it('sans plafond, un score énorme traverse la piste entière', () => {
+    const avancee = avancer({ trou: 0, reste: 0 }, 1_000_000, REGLES_MANCHE)
+    expect(avancee.progression.trou).toBe(121)
+  })
+
+  it('la cheville s’arrête à la cible plus le plafond', () => {
+    const avancee = avancer({ trou: 0, reste: 0 }, 1_000_000, avecPlafond)
+    expect(avancee.progression.trou).toBe(12)
+    expect(plafondDeLaManche(6, avecPlafond)).toBe(12)
+  })
+
+  it('le surplus n’est pas perdu : il part au report', () => {
+    // 12 Trous de Rue I coutent 360 ; les 640 restants attendent la Manche suivante.
+    const avancee = avancer({ trou: 0, reste: 0 }, 1000, avecPlafond)
+    expect(avancee.progression.trou).toBe(12)
+    expect(avancee.progression.reste).toBe(1000 - 12 * 30)
+  })
+
+  it('le plafond suit la cible vivante, pas celle du départ', () => {
+    // Le Regulier pousse la cible de 6 a 14 en cours de Manche : le plafond suit.
+    expect(plafondDeLaManche(14, avecPlafond)).toBe(20)
+    expect(avancer({ trou: 0, reste: 0 }, 1_000_000, avecPlafond, 14).progression.trou).toBe(20)
+  })
+
+  it('une cheville déjà au-delà du plafond ne recule pas — elle attend', () => {
+    const avancee = avancer({ trou: 30, reste: 0 }, 5000, avecPlafond)
+    expect(avancee.progression.trou).toBe(30)
+    expect(avancee.trousGagnes).toBe(0)
+    expect(avancee.progression.reste).toBe(5000)
+  })
+
+  it('le plafond ne dépasse jamais le dernier Trou', () => {
+    const derniere = { ...avecPlafond, cibleAdversaire: 121 }
+    expect(plafondDeLaManche(121, derniere)).toBe(121)
   })
 })
