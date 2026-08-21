@@ -33,6 +33,11 @@ export interface ReglesManche {
    * `null` = aucun plafond, la piste seule arbitre (carnet §8.5).
    */
   readonly plafondAuDelaDeLaCible: number | null
+  /**
+   * Combien de Trous d'avance la banque de report peut contenir au plus, exprime en cout du
+   * Trou suivant. `null` = aucune borne (carnet §8 q4, le report integral).
+   */
+  readonly reportMaximumEnTrous: number | null
 }
 
 export const REGLES_MANCHE: ReglesManche = {
@@ -66,4 +71,5 @@ export const REGLES_MANCHE: ReglesManche = {
   revelerRetourneAvantDefausse: false,
   boiteScellee: false,
   plafondAuDelaDeLaCible: null,
+  reportMaximumEnTrous: null,
 }

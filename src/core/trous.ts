@@ -23,6 +23,16 @@ export function coutDuTrou(numero: number, regles: ReglesManche): number {
  * Le Trou le plus loin ou la cheville peut aller cette Manche. Sans plafond, c'est la fin de
  * la piste : le score seul decide, et une Manche assez grosse traverse une Rue entiere.
  */
+/**
+ * Borne la banque de report a quelques Trous d'avance. Sans elle, un plafond d'avance ne
+ * supprime pas le depassement : il le met de cote, et la fin de run se retrouve payee avant
+ * d'etre jouee. `null` = aucune borne, tout le surplus est garde (carnet §8 q4).
+ */
+function plafonnerLeReport(reste: number, trou: number, regles: ReglesManche): number {
+  if (regles.reportMaximumEnTrous === null) return reste
+  return Math.min(reste, regles.reportMaximumEnTrous * coutDuTrou(trou + 1, regles))
+}
+
 export function plafondDeLaManche(cible: number, regles: ReglesManche): number {
   if (regles.plafondAuDelaDeLaCible === null) return regles.trouFinal
   return Math.min(regles.trouFinal, cible + regles.plafondAuDelaDeLaCible)
@@ -54,7 +64,7 @@ export function avancer(
   }
 
   return {
-    progression: { trou, reste: regles.reporterLeReste ? reste : 0 },
+    progression: { trou, reste: regles.reporterLeReste ? plafonnerLeReport(reste, trou, regles) : 0 },
     trousGagnes: trou - progression.trou,
   }
 }

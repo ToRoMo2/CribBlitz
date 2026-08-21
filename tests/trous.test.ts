@@ -104,3 +104,44 @@ describe('le plafond d’avance [carnet §4.3, question §8.7]', () => {
     expect(plafondDeLaManche(121, derniere)).toBe(121)
   })
 })
+
+describe('la borne du report [carnet §8 q4]', () => {
+  it('sans borne, la banque garde tout le surplus', () => {
+    const avancee = avancer({ trou: 0, reste: 0 }, 100_000, {
+      ...REGLES_MANCHE,
+      cibleAdversaire: 6,
+      plafondAuDelaDeLaCible: 6,
+    })
+    expect(avancee.progression.reste).toBe(100_000 - 12 * 30)
+  })
+
+  it('bornée, la banque ne garde que N Trous d’avance et le reste est perdu', () => {
+    // Plafonnee a 12, la cheville s'arrete la ; le Trou 13 coute 30, donc 2 Trous = 60.
+    const avancee = avancer({ trou: 0, reste: 0 }, 100_000, {
+      ...REGLES_MANCHE,
+      cibleAdversaire: 6,
+      plafondAuDelaDeLaCible: 6,
+      reportMaximumEnTrous: 2,
+    })
+    expect(avancee.progression.trou).toBe(12)
+    expect(avancee.progression.reste).toBe(60)
+  })
+
+  it('la borne se lit dans la Rue où la cheville se trouve, pas dans la première', () => {
+    // Au Trou 60, le Trou suivant est en Rue III et coute 320 : 2 Trous = 640.
+    const avancee = avancer({ trou: 60, reste: 0 }, 100_000, {
+      ...REGLES_MANCHE,
+      cibleAdversaire: 57,
+      plafondAuDelaDeLaCible: 6,
+      reportMaximumEnTrous: 2,
+    })
+    expect(avancee.progression.trou).toBe(63)
+    expect(avancee.progression.reste).toBe(640)
+  })
+
+  it('une banque plus petite que la borne n’est pas touchée', () => {
+    const avancee = avancer({ trou: 0, reste: 0 }, 35, { ...REGLES_MANCHE, reportMaximumEnTrous: 2 })
+    expect(avancee.progression.trou).toBe(1)
+    expect(avancee.progression.reste).toBe(5)
+  })
+})
