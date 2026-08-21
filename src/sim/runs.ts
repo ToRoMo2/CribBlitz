@@ -35,6 +35,8 @@ export interface MesureManche {
   readonly estAdversaire: boolean
   readonly argentApres: number
   readonly reliques: number
+  /** La banque : points convertis en aucun Trou, reportes sur la Manche suivante. */
+  readonly resteApres: number
 }
 
 export interface MesuresRun {
@@ -178,6 +180,7 @@ function mesurer(run: EtatRun, trouAvant: number, coutAuDepart: number): MesureM
     estAdversaire: adversaireDeLaManche(run.adversaires, run.reglesRun, run.indexManche) !== null,
     argentApres: run.argent,
     reliques: run.reliquesEquipees.length,
+    resteApres: run.manche.reste,
   }
 }
 
