@@ -7,6 +7,7 @@ import {
   type EtatRun,
   type OptionsRun,
 } from '../src/core/run.js'
+import { LA_PINCE } from '../src/reliques/la-pince.js'
 import { REGLES_RUN } from '../src/presets/run.js'
 import { CONFIG_PAR_DEFAUT } from '../src/presets/index.js'
 
@@ -231,3 +232,39 @@ function jouerJusquA(run: EtatRun, index: number): EtatRun {
   }
   return courant
 }
+
+describe('une relique achetée en boutique agit dès la Manche suivante', () => {
+  /** Joue la Manche courante jusqu'a la boutique. */
+  function jusquALaBoutique(run: EtatRun): EtatRun {
+    let courant = run
+    while (courant.statut === 'MANCHE') {
+      const state = courant.manche
+      courant = reduireRun(
+        courant,
+        state.phase === 'DEFAUSSE'
+          ? { type: 'DEFAUSSER', indices: [0, 1] }
+          : { type: 'ENCAISSER' },
+      ).run
+    }
+    return courant
+  }
+
+  it('La Pince révèle la Retourne avant la défausse, et l’annonce', () => {
+    const apres = jusquALaBoutique(creerRun(3).run)
+    expect(apres.statut).toBe('BOUTIQUE')
+
+    const suivante = commencerMancheSuivante({ ...apres, reliquesEquipees: [LA_PINCE] })
+    // Le coeur la connait...
+    expect(suivante.run.manche.donne.retourne).not.toBeNull()
+    // ...et le dit, sinon la couche de presentation n'a aucun moyen de l'afficher : c'est
+    // par la que le bug est passe, la CLI jetant les evenements d'ouverture de Manche.
+    expect(suivante.events.map((evenement) => evenement.type)).toContain('RETOURNE_REVELEE')
+  })
+
+  it('sans elle, la Retourne reste cachée jusqu’à la défausse', () => {
+    const apres = jusquALaBoutique(creerRun(3).run)
+    const suivante = commencerMancheSuivante(apres)
+    expect(suivante.run.manche.donne.retourne).toBeNull()
+    expect(suivante.events.map((evenement) => evenement.type)).not.toContain('RETOURNE_REVELEE')
+  })
+})

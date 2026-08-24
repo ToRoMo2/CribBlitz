@@ -102,6 +102,11 @@ async function demanderDefausse(clavier: Clavier, state: EtatPartie): Promise<Ac
     console.log(formatPlateau(state))
     console.log('')
     console.log(`  MAIN     ${formatMainIndexee(state.donne.main)}`)
+    // La Pince revele la Retourne avant la defausse : c'est tout ce qu'elle achete, donc
+    // elle doit etre lisible ici, au moment ou la decision se prend.
+    if (state.donne.retourne !== null) {
+      console.log(`  RETOURNE ${formatCarte(state.donne.retourne)}`)
+    }
     console.log(formatBoite(state.boite, state.config.manche.nombreDeDonnes * attendu))
     const reponse = await clavier.demander(
       `\n  ${attendu} cartes pour la Boîte (ex. « 0 4 ») > `,
@@ -250,13 +255,19 @@ function offreRestante(offre: Offre, achetees: ReadonlySet<string>): Offre {
 async function jouerUneRun(clavier: Clavier, graine: number): Promise<boolean> {
   console.log('')
   console.log(`════════ RUN (graine ${graine}) ════════`)
-  let { run } = creerRun(graine)
+  const depart = creerRun(graine)
+  let run = depart.run
+  afficher(rendreEvenements(depart.events))
 
   while (run.statut !== 'GAGNEE' && run.statut !== 'PERDUE') {
     run = await jouerLaManche(clavier, run)
     if (run.statut === 'BOUTIQUE') {
       run = await tenirBoutique(clavier, run)
-      run = commencerMancheSuivante(run).run
+      // Les evenements d'ouverture de Manche comptent : la premiere Donne y est distribuee,
+      // et c'est la que RETOURNE_REVELEE et TALONS tombent quand La Pince est equipee.
+      const suivante = commencerMancheSuivante(run)
+      run = suivante.run
+      afficher(rendreEvenements(suivante.events))
     }
   }
 
