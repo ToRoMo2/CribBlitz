@@ -125,6 +125,42 @@ pose, le total dépasse 31 → **tous les points de Pose de cette Donne sont per
 
 Atteindre exactement 31 avec les 4 cartes est une prouesse : bonus dédié, à définir.
 
+#### Ce que la Pose rapporte **[RÈGLE]**
+
+**Les points de Pose ne s'ajoutent pas au score : ils deviennent du Mult sur le Compte de la
+main de la même Donne.** Un point de Pose vaut **+1 Mult**.
+
+Ajoutés bruts, ils ne servaient à rien, et c'est mesuré : 2,5 à 2,8 points par Donne, un
+chiffre plat sur toute la run, pendant que le Compte de la main passe de 63 à 183. La part
+de la Pose dans une Donne tombait de **4,2 %** en Rue I à **1,3 %** en Rue IV. La cause était
+structurelle — la Pose vivait hors de la couche roguelike, en points de cribbage de 1630,
+dans un jeu dont les scores croissent d'un facteur 17.
+
+Le Mult, lui, est une échelle **bornée** : les niveaux de Voie donnent +0,5 chacun et il n'y
+en a pas tant à acheter, si bien que le Mult total sature autour de 7 à 9. C'est ce qui fait
+tenir la correction — la part de la Pose baisse de la Rue I à la Rue II, puis se stabilise,
+au lieu de s'effondrer sans fin.
+
+| Rue | part de la Pose dans le Mult (taux 1) |
+|---|---|
+| I | 39,7 % |
+| II | 30,8 % |
+| III | 28,6 % |
+| IV | **28,9 %** |
+
+Le taux de 1 est calibré : c'est la seule valeur du balayage qui ramène le taux de victoire
+à son repère (40 % en « achète tout » contre 37 % visés ; 0,25 à 0,75 donnent tous 33 %, 1,5
+et 2 montent à 43 % et 45 %). C'est aussi la règle la plus lisible possible — « chaque point
+de Pose vaut un Mult » se retient sans tableau.
+
+Trois conséquences voulues :
+
+- **L'explosion coûte tout le Mult**, plus deux points. Le risque de la Pose devient enfin
+  proportionnel à ce qu'elle rapporte.
+- **Encaisser tôt est un vrai choix**, avec une contrepartie réelle. Avant, y renoncer coûtait
+  deux points, c'est-à-dire rien.
+- **La Boîte ne reçoit pas ce Mult** : il appartient à la Donne qui l'a gagné.
+
 ### 1.4 Ce qu'on ne modifie jamais
 
 Les valeurs de base (quinzaine = 2, paire = 2, suite = 1/carte, couleur = 4/5, valet = 1)
@@ -146,6 +182,7 @@ SCORE  =  POINTS  ×  MULT
 
 POINTS  =  somme des points de CHAQUE OCCURRENCE de combinaison
 MULT    =  1  +  somme des mults de CHAQUE VOIE DÉCLENCHÉE (une seule fois par Voie)
+              +  les points de la Pose de cette Donne  (§1.3)
 ```
 
 C'est la distinction centrale, et elle crée deux philosophies de build opposées :
@@ -191,6 +228,8 @@ pouvoir s'insérer à un point précis.
 1. Retourne dévoilée            → événement RETOURNE
 2. Talons si c'est un Valet     → événement TALONS
 3. La Pose, carte par carte     → POSE_CARTE, POSE_MARQUE, POSE_ENCAISSE / POSE_EXPLOSE
+3bis. Ses points deviennent du Mult → POSE_MULT (émis même à zéro : voir le Mult
+      qu'on vient de perdre est le retour d'information du risque)
 4. Le Compte de la main :
      a. les Quinzaines, une par une, dans l'ordre croissant de taille
      b. les Paires
@@ -290,18 +329,23 @@ Mesure à 60 runs, par politique d'achat automatique, avec le plafond d'avance d
 
 | Politique | % gagné | Trou médian | meurt surtout |
 |---|---|---|---|
-| n'achète rien | 0 % | 39 | Manches 4–5 |
-| Voies seules | 0 % | 55 | Manches 5–7 |
-| reliques seules | 2 % | 74 | Manches 6–9 |
-| achète tout | **37 %** | 99 | Manches 6–12 |
+| n'achète rien | 0 % | 42 | Manches 4–5 |
+| Voies seules | 0 % | 66 | Manches 6–9 |
+| reliques seules | 3 % | 78 | Manches 6–9 |
+| achète tout | **43 %** | 119 | Manches 6–12 |
 
 Ne pas acheter, c'est mourir : la boutique n'est pas un supplément.
 
 Et la marge se resserre enfin Rue après Rue, ce que PROTOTYPE demandait sans qu'on sache
-l'obtenir. En « achète tout », l'avance médiane sur la cheville adverse tombe de **+5,5** en
-Rue I à **+4,7**, **+3,7**, puis **+1,5** en Rue IV, pendant que la survie descend de 100 % à
-**52 %**. La Rue IV est redevenue un mur qu'on aborde de justesse, au lieu d'une formalité
+l'obtenir. En « achète tout », l'avance médiane sur la cheville adverse tombe de **+5,6** en
+Rue I à **+5,0**, **+4,2**, puis **+1,5** en Rue IV, pendant que la survie descend de 100 % à
+**63 %**. La Rue IV est redevenue un mur qu'on aborde de justesse, au lieu d'une formalité
 qu'on n'atteignait jamais ou qu'on abordait la banque pleine.
+
+Ces chiffres sont ceux d'après le passage de la Pose au Mult (§1.3). Elle a coûté 6 points de
+taux de victoire — 37 % avant, 43 % après — parce qu'elle a rendu du pouvoir à une surface
+qui n'en avait plus. La courbe des coûts n'a pas été retouchée pour compenser : l'écart part
+au débit de la question ouverte n° 9, qui porte déjà sur ce taux.
 
 ### 4.3 Les cibles
 
@@ -514,12 +558,16 @@ trois autres couleurs. La mécanique de deckbuilding est déjà écrite dans les
 ### Encore ouvertes
 
 3. **La Pose est-elle obligatoire ou optionnelle chaque Donne ?** Aujourd'hui elle est
-   obligatoire : on peut encaisser à tout moment, mais pas la sauter.
+   obligatoire : on peut encaisser à tout moment, mais pas la sauter. La question a changé de
+   nature depuis que la Pose achète du Mult (§1.3) : la sauter coûterait désormais ~29 % du
+   Mult de la Donne, donc « optionnelle » redeviendrait un vrai choix au lieu d'un raccourci.
 6. **Nom du jeu.** « Boîte » reste un nom de code.
 8. **Le `multiplicateurMain`** (×2 sur le seul Compte de la main, calibré à l'étape 1) ne
    figure pas dans la formule du §2.1. Décision provisoire : il est affiché comme un **bonus
    permanent**, annoncé avant le comptage. Reste à décider s'il doit être fondu dans les
    niveaux de Voie, devenir un bonus de Mult, ou rester un troisième facteur.
-9. **Le taux de victoire reste haut pour une politique d'achat naïve** : 37 % en « achète
+9. **Le taux de victoire reste haut pour une politique d'achat naïve** : 43 % en « achète
    tout », quand PROTOTYPE le veut « bas et non nul ». Ni le plafond ni la courbe des coûts
-   n'y touchent — les deux ont été mesurés. À reprendre séparément.
+   n'y touchent — les deux ont été mesurés — et le passage de la Pose au Mult (§1.3) l'a
+   remonté de 6 points. À reprendre séparément, sans doute par la courbe des coûts, qui est
+   le seul levier qui n'ait pas encore été bougé depuis.

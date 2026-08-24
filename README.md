@@ -106,8 +106,12 @@ quand vous marquez gros, celle qui vous vole des trous quand vous explosez à la
 Après la défausse, avant le comptage, il y a **la Pose**. Vous posez vos quatre cartes une
 par une, le total grimpe, et vous marquez en chemin : 15, paires, suites, 31.
 
-Mais **au-delà de 31, tout ce que la pose vous a rapporté est perdu.** Vous pouvez vous
-arrêter et encaisser à tout moment.
+Ce que vous marquez là ne s'ajoute pas à votre score : **chaque point de pose vaut un Mult
+sur le comptage de la main qui suit.** Une pose réussie ne vous rapporte pas quelques points,
+elle multiplie tout le reste.
+
+Et **au-delà de 31, tout est perdu** — les points, donc le Mult. Vous pouvez vous arrêter et
+encaisser à tout moment.
 
 De l'ADN blackjack, compris par tout le monde en zéro seconde. Et surtout : une carte peut
 être médiocre au comptage et excellente à la pose. **Une deuxième surface entière de

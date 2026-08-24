@@ -38,6 +38,12 @@ export const REGLES_POSE: ReglesPose = {
   pointsDerniereCarte: 1,
   bonusSeuilParfait: 0,
   ordreCroissantImpose: false,
-  // [À CALIBRER] — la valeur retenue sort du balayage au harnais, pas d'une intuition.
-  multParPointDePose: 0.5,
+  /**
+   * CALIBRE. Un point de Pose vaut un Mult — la regle la plus lisible possible, et la seule
+   * valeur du balayage qui rende le taux de victoire a son repere : 40 % en « achete tout »
+   * contre 37 % vises, quand 0,25 a 0,75 tombent tous a 33 % et que 1,5 et 2 montent a 43 %
+   * et 45 %. A ce taux la Pose pese ~29 % du Mult d'une Donne : un levier, sans ecraser les
+   * cinq Voies.
+   */
+  multParPointDePose: 1,
 }
