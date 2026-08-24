@@ -3,6 +3,7 @@ import { estValet, formatCarte } from '../src/core/carte.js'
 import type { Evenement } from '../src/core/evenements.js'
 import type { EtatPartie } from '../src/core/etat.js'
 import { creerManche, reduire } from '../src/core/manche.js'
+import { CONFIG_PAR_DEFAUT } from '../src/presets/index.js'
 import { indicesPosables } from '../src/core/pose.js'
 
 /** Une Manche entiere, jouee betement : on defausse les 2 dernieres, on pose sans exploser. */
@@ -169,5 +170,86 @@ describe('le coeur reste pur', () => {
     expect(state.donne.main.map(formatCarte)).toEqual(avant)
     expect(state.boite).toHaveLength(0)
     expect(state.phase).toBe('DEFAUSSE')
+  })
+})
+
+describe('la Pose multiplie la main au lieu de s’ajouter [carnet §1.3, §2.1]', () => {
+  /** Joue une Donne entiere avec une Pose choisie, et rend le resume et les evenements. */
+  function premiereDonne(
+    multParPointDePose: number,
+    exploser: boolean,
+  ): { resume: EtatPartie['historique'][number]; events: Evenement[] } {
+    // Pour exploser a coup sur, on abaisse le seuil : la premiere carte le depasse deja.
+    // Le seuil est une donnee, donc le test n'a besoin d'aucune main truquee.
+    const config = {
+      ...CONFIG_PAR_DEFAUT,
+      pose: {
+        ...CONFIG_PAR_DEFAUT.pose,
+        multParPointDePose,
+        ...(exploser ? { seuil: 1 } : {}),
+      },
+    }
+    let resultat = creerManche(2026, config)
+    const events: Evenement[] = []
+    resultat = reduire(resultat.state, { type: 'DEFAUSSER', indices: [4, 5] })
+    events.push(...resultat.events)
+
+    while (resultat.state.historique.length === 0) {
+      const pose = resultat.state.donne.pose
+      if (pose === null) throw new Error('Pose absente')
+      // Les regles de CETTE Manche, pas les regles par defaut : avec un seuil abaisse,
+      // les cartes posables ne sont pas les memes.
+      const posables = indicesPosables(pose, config.pose)
+      // Pour exploser, on pose une carte interdite ; sinon on suit les cartes posables.
+      const index = exploser
+        ? pose.enMain.findIndex((_, i) => !posables.includes(i))
+        : posables[0]
+      const action = index === undefined || index < 0
+        ? ({ type: 'ENCAISSER' } as const)
+        : ({ type: 'POSER', index } as const)
+      const suivant = reduire(resultat.state, action)
+      resultat = suivant
+      events.push(...suivant.events)
+    }
+
+    const resume = resultat.state.historique[0]
+    if (resume === undefined) throw new Error('Donne inachevee')
+    return { resume, events }
+  }
+
+  it('les points de Pose ne s’ajoutent plus au score de la Donne', () => {
+    const { resume } = premiereDonne(0.5, false)
+    // Le score de la Donne, c'est la main comptee plus les talons — la Pose n'y entre plus.
+    expect(resume.scoreDonne).toBe(resume.scoreMain + resume.talons)
+  })
+
+  it('ils deviennent du Mult sur le Compte de la même Donne', () => {
+    const sans = premiereDonne(0, false).resume
+    const avec = premiereDonne(0.5, false).resume
+    expect(sans.pointsPose).toBeGreaterThan(0)
+    expect(avec.pointsPose).toBe(sans.pointsPose)
+    expect(avec.multMain).toBeCloseTo(sans.multMain + sans.pointsPose * 0.5)
+    expect(avec.scoreMain).toBeGreaterThan(sans.scoreMain)
+  })
+
+  it('à zéro, la Pose ne rapporte plus rien — le témoin', () => {
+    const sans = premiereDonne(0, false).resume
+    expect(sans.scoreDonne).toBe(sans.scoreMain + sans.talons)
+  })
+
+  it('l’annonce précède le Compte, sinon le Mult sort de nulle part', () => {
+    const { events } = premiereDonne(0.5, false)
+    const rangMult = events.findIndex((evenement) => evenement.type === 'POSE_MULT')
+    const rangCompte = events.findIndex((evenement) => evenement.type === 'MULT_APPLIQUE')
+    expect(rangMult).toBeGreaterThanOrEqual(0)
+    expect(rangMult).toBeLessThan(rangCompte)
+  })
+
+  it('une Pose explosée n’achète aucun Mult', () => {
+    const { resume, events } = premiereDonne(0.5, true)
+    expect(resume.explosee).toBe(true)
+    expect(resume.pointsPose).toBe(0)
+    const annonce = events.find((evenement) => evenement.type === 'POSE_MULT')
+    expect(annonce).toEqual({ type: 'POSE_MULT', pointsDePose: 0, mult: 0 })
   })
 })

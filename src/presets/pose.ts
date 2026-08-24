@@ -16,6 +16,14 @@ export interface ReglesPose {
   readonly bonusSeuilParfait: number
   /** L'Ordonne (§4.4) : chaque carte posee doit avoir un rang strictement superieur. */
   readonly ordreCroissantImpose: boolean
+  /**
+   * Ce qu'un point de Pose vaut en Mult sur le Compte de la main qui suit, dans la meme
+   * Donne. C'est par la que la Pose entre dans la couche roguelike : ses points ne
+   * s'ajoutent plus au score, ils multiplient celui de la main.
+   *
+   * A zero, la Pose ne rapporte plus rien du tout — c'est le temoin, pas un reglage.
+   */
+  readonly multParPointDePose: number
 }
 
 export const REGLES_POSE: ReglesPose = {
@@ -30,4 +38,6 @@ export const REGLES_POSE: ReglesPose = {
   pointsDerniereCarte: 1,
   bonusSeuilParfait: 0,
   ordreCroissantImpose: false,
+  // [À CALIBRER] — la valeur retenue sort du balayage au harnais, pas d'une intuition.
+  multParPointDePose: 0.5,
 }

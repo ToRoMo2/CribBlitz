@@ -128,6 +128,7 @@ export const REGLES_SCANSION: ReglesScansion = {
     SCORE_CALCULE: 700,
     BOITE_COMPTEE: 500,
     CIBLE_AVANCE: 380,
+    POSE_MULT: 320,
     CHEVILLE_AVANCE: 450,
     // Cale sur CHEVILLE_AVANCE : rien de ce qui a ete valide a l'oreille ne bouge.
     CHEVILLE_PLAFONNEE: 450,
@@ -149,6 +150,7 @@ export const REGLES_SCANSION: ReglesScansion = {
     SCORE_CALCULE: 'score',
     BOITE_COMPTEE: null,
     CIBLE_AVANCE: 'explose',
+    POSE_MULT: 'cheville',
     CHEVILLE_AVANCE: 'cheville',
     CHEVILLE_PLAFONNEE: 'explose',
     MANCHE_GAGNEE: 'victoire',

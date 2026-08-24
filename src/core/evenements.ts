@@ -29,6 +29,11 @@ export type Evenement =
       readonly cartes: readonly Carte[]
     }
   | { readonly type: 'POSE_ENCAISSE'; readonly points: number }
+  /**
+   * Ce que la Pose achete au Compte qui suit. Emis meme a zero quand la Pose a explose :
+   * voir le Mult qu'on vient de perdre est le retour d'information du risque.
+   */
+  | { readonly type: 'POSE_MULT'; readonly pointsDePose: number; readonly mult: number }
   | { readonly type: 'POSE_EXPLOSE'; readonly total: number; readonly pointsPerdus: number }
   | {
       readonly type: 'COMBINAISON_TROUVEE'

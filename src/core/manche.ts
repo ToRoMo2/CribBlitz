@@ -156,10 +156,17 @@ function terminerDonne(state: EtatPartie, pose: EtatPose, events: Evenement[]): 
   // suit — celui de cette meme Donne — consomme. Aucun etat inter-Donne n'est necessaire.
   const effets = collecterEncaissement(state.modificateurs, { explosee: pose.explosee })
 
+  // La Pose n'ajoute plus ses points au score : elle multiplie celui de la main (carnet
+  // §1.3, §2.1). Mesure a l'appui, ajoutes bruts ils pesaient 4,2 % d'une Donne de Rue I et
+  // 1,3 % en Rue IV — la deuxieme surface de score n'en etait pas une.
+  const multDeLaPose = pose.points * state.config.pose.multParPointDePose
+  events.push({ type: 'POSE_MULT', pointsDePose: pose.points, mult: multDeLaPose })
+
   const { contrib, effectif } = compterEtEmettre(
-    state, state.donne.main, retourne, false, 'MAIN', state.config.multiplicateurMain, effets, events,
+    state, state.donne.main, retourne, false, 'MAIN', state.config.multiplicateurMain, effets,
+    multDeLaPose, events,
   )
-  const scoreDonne = effectif + pose.points + state.donne.talons
+  const scoreDonne = effectif + state.donne.talons
   const avance = faireAvancerLaCheville(state, scoreDonne, events)
   // La cheville adverse reagit a la Donne qui vient de finir : Le Regulier avance toujours,
   // Le Vorace bondit sur les gros scores, Le Tranchant sur les explosions (carnet §4.4).
@@ -208,7 +215,8 @@ function distribuerLaSuivante(state: EtatPartie, events: Evenement[]): Resultat 
  */
 function compterLaBoite(state: EtatPartie, retourne: Carte, events: Evenement[]): Resultat {
   // La Boite n'est jamais rehaussee : le multiplicateur ne touche que la main (carnet §7).
-  const { effectif } = compterEtEmettre(state, state.boite, retourne, true, 'BOITE', 1, [], events)
+  // La Boite ne recoit pas le Mult de la Pose : il appartient a la Donne qui l'a gagne.
+  const { effectif } = compterEtEmettre(state, state.boite, retourne, true, 'BOITE', 1, [], 0, events)
   events.push({ type: 'BOITE_COMPTEE', cartes: state.boite, score: effectif })
 
   const apres = faireAvancerLaCheville(state, effectif, events)
@@ -236,14 +244,17 @@ function compterEtEmettre(
   origine: 'MAIN' | 'BOITE',
   multiplicateur: number,
   effets: readonly Effet[],
+  bonusMult: number,
   events: Evenement[],
 ): { contrib: { points: number; mult: number }; effectif: number } {
   const brutes = compterMain(cartes, retourne, estBoite, state.config.cribbage)
   const combinaisons = plierCombinaisons(state.modificateurs, brutes, { origine, cartes, retourne })
   const score = calculerScore(combinaisons, state.config.niveaux, state.config.voies)
+  // Le bonus de la Pose entre avant les hooks, au meme rang qu'une Voie : une relique qui
+  // agit sur le Mult le voit donc, et tout se compose au lieu de s'empiler par cas.
   const contrib = plierScore(
     state.modificateurs,
-    { points: score.points, mult: score.mult },
+    { points: score.points, mult: score.mult + bonusMult },
     { origine, occurrences: score.occurrences, effets },
   )
   const effectif = Math.round(Math.round(contrib.points * contrib.mult) * multiplicateur)
