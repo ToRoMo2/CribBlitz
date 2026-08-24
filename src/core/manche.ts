@@ -14,7 +14,7 @@ import {
 } from './modificateurs.js'
 import { creerPose, encaisser, poser, type EtatPose } from './pose.js'
 import { creerRng, melanger } from './rng.js'
-import { avancer, type Progression } from './trous.js'
+import { avancer, plafondDeLaManche, type Progression } from './trous.js'
 import { calculerScore } from './voies.js'
 import type { Action, EtatDonne, EtatPartie, Resultat, ResumeDonne } from './etat.js'
 import { CONFIG_PAR_DEFAUT, type ConfigPartie } from '../presets/index.js'
@@ -299,6 +299,20 @@ function faireAvancerLaCheville(
     a: avancee.progression.trou,
     reste: avancee.progression.reste,
   })
+
+  // Le plafond ne se contente pas de bloquer : il jette ce que la banque ne peut plus tenir.
+  // Les deux doivent s'entendre, sinon des points disparaissent sans explication.
+  const plafond = plafondDeLaManche(state.cible, state.config.manche)
+  if (avancee.progression.trou >= plafond || avancee.reportPerdu > 0) {
+    events.push({
+      type: 'CHEVILLE_PLAFONNEE',
+      trou: avancee.progression.trou,
+      plafond,
+      reste: avancee.progression.reste,
+      pointsPerdus: avancee.reportPerdu,
+    })
+  }
+
   return { ...state, trou: avancee.progression.trou, reste: avancee.progression.reste }
 }
 

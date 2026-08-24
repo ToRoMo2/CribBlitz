@@ -9,6 +9,8 @@ export interface Progression {
 export interface Avancee {
   readonly progression: Progression
   readonly trousGagnes: number
+  /** Ce que la borne du report a jete. Zero quand la banque a tout garde. */
+  readonly reportPerdu: number
 }
 
 /** Le cout d'entree dans un Trou donne. Chaque Rue coute plus cher que la precedente. */
@@ -42,9 +44,10 @@ export function plafondDeLaManche(cible: number, regles: ReglesManche): number {
  * Convertit un score en Trous. La cheville avance tant que le reste paie le Trou suivant,
  * et le reliquat est reporte — c'est ce qui rend une petite Donne utile.
  *
- * Quand la Manche a un plafond, la cheville s'y arrete et tout le surplus reste au report :
- * rien n'est perdu, tout est differe. Un score enorme n'achete plus de la distance, il
- * achete de l'avance en banque.
+ * Quand la Manche a un plafond, la cheville s'y arrete et le surplus part au report : un
+ * score enorme n'achete plus de la distance, il achete de l'avance. Et comme le report est
+ * lui-meme borne, l'avance a une limite — au-dela, marquer plus ne sert plus a rien.
+ * C'est ce couple qui rend la fin de run jouable au lieu d'etre payee d'avance (§8.7).
  */
 export function avancer(
   progression: Progression,
@@ -63,8 +66,10 @@ export function avancer(
     trou++
   }
 
+  const garde = regles.reporterLeReste ? plafonnerLeReport(reste, trou, regles) : 0
   return {
-    progression: { trou, reste: regles.reporterLeReste ? plafonnerLeReport(reste, trou, regles) : 0 },
+    progression: { trou, reste: garde },
     trousGagnes: trou - progression.trou,
+    reportPerdu: regles.reporterLeReste ? reste - garde : 0,
   }
 }

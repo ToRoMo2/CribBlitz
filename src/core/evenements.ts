@@ -63,5 +63,17 @@ export type Evenement =
       readonly a: number
       readonly reste: number
     }
+  /**
+   * La cheville bute sur le plafond de la Manche. Meme raison que CIBLE_AVANCE : une piste
+   * qui refuse d'avancer en silence, ou des points qui s'evaporent sans le dire, seraient
+   * incomprehensibles. `pointsPerdus` est ce que la banque n'a pas pu garder.
+   */
+  | {
+      readonly type: 'CHEVILLE_PLAFONNEE'
+      readonly trou: number
+      readonly plafond: number
+      readonly reste: number
+      readonly pointsPerdus: number
+    }
   | { readonly type: 'MANCHE_GAGNEE'; readonly trou: number; readonly cible: number }
   | { readonly type: 'MANCHE_PERDUE'; readonly trou: number; readonly cible: number }

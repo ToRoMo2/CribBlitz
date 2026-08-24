@@ -129,11 +129,36 @@ describe('le plateau persistant [carnet §4.2]', () => {
   })
 })
 
-describe('dépasser le dernier Trou [carnet §8.5]', () => {
-  it('gagne la run séance tenante, sans attendre la dernière Manche', () => {
-    // Un Trou a 1 point : la premiere Manche pulverise la piste entiere.
-    const piste: OptionsRun = {
+describe('dépasser le dernier Trou [carnet §8.5, amendé §8.7]', () => {
+  /** Un Trou a 1 point : la premiere Manche pulveriserait la piste entiere. */
+  function pisteMinuscule(plafond: number | null): OptionsRun {
+    return {
       ...cibles([1, 1, 1]),
+      config: {
+        ...CONFIG_PAR_DEFAUT,
+        manche: {
+          ...CONFIG_PAR_DEFAUT.manche,
+          trouFinal: 20,
+          coutsDesTrous: [{ jusquAuTrou: 20, cout: 1 }],
+          plafondAuDelaDeLaCible: plafond,
+        },
+      },
+    }
+  }
+
+  it('sans plafond, gagne la run séance tenante, sans attendre la dernière Manche', () => {
+    const run = jouerRun(1, pisteMinuscule(null))
+    expect(run.statut).toBe('GAGNEE')
+    // Gagnee des la Manche 1, et non a la troisieme.
+    expect(run.indexManche).toBe(0)
+    expect(run.manche.trou).toBeGreaterThanOrEqual(20)
+  })
+
+  it('la règle tient toujours : atteindre le dernier Trou gagne, quelle que soit la Manche', () => {
+    // Le plafond ne change pas la regle du §8.5, il change ce qui est atteignable : ici la
+    // cible de la Manche 1 est deja le dernier Trou, donc le plafond ne bride rien.
+    const run = jouerRun(1, {
+      ...cibles([20, 20, 20]),
       config: {
         ...CONFIG_PAR_DEFAUT,
         manche: {
@@ -142,12 +167,17 @@ describe('dépasser le dernier Trou [carnet §8.5]', () => {
           coutsDesTrous: [{ jusquAuTrou: 20, cout: 1 }],
         },
       },
-    }
-    const run = jouerRun(1, piste)
+    })
     expect(run.statut).toBe('GAGNEE')
-    // Gagnee des la Manche 1, et non a la troisieme.
     expect(run.indexManche).toBe(0)
-    expect(run.manche.trou).toBeGreaterThanOrEqual(20)
+  })
+
+  it('avec le plafond, la cheville ne peut plus doubler la cible et la run continue', () => {
+    // C'est la reponse a §8.7 : la piste ne se traverse plus en une Manche, donc la Rue IV
+    // et son Adversaire cessent d'etre decoratifs.
+    const run = jouerRun(1, pisteMinuscule(6))
+    expect(run.manche.trou).toBeLessThanOrEqual(1 + 6)
+    expect(run.indexManche).toBeGreaterThan(0)
   })
 })
 

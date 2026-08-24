@@ -148,8 +148,14 @@ npm test                 # les tests du cœur et de la partition
 ```
 
 L'étape 4 a construit la run entière — plateau persistant de 121 Trous, 4 Rues, les 8
-Adversaires — et calibré la courbe des coûts par simulation. Il lui reste son critère
-d'arrêt : **3 runs complètes jouées à la main**.
+Adversaires — calibré la courbe des coûts par simulation, puis tranché sa dernière question
+structurelle : la cheville ne peut plus dépasser sa cible de plus de 6 Trous, et le report
+ne peut plus contenir plus de 3 Trous d'avance. Sans ces deux bornes, 59 % des vainqueurs
+franchissaient la ligne avant la Manche 10 et ne rencontraient jamais l'Adversaire de la
+Rue IV ; avec elles, toutes les runs gagnantes affrontent les quatre. Le détail de la
+mesure est au §4.3 du carnet.
+
+Il reste à l'étape 4 son critère d'arrêt : **3 runs complètes jouées à la main**.
 
 ## Documents
 

@@ -108,6 +108,13 @@ function rendreUn(evenement: Evenement, cumuler: () => number): string[] {
       return evenement.a === evenement.de
         ? [`  cheville : Trou ${evenement.a} (report ${evenement.reste})`]
         : [`  cheville : Trou ${evenement.de} → ${evenement.a} (report ${evenement.reste})`]
+    case 'CHEVILLE_PLAFONNEE':
+      return evenement.pointsPerdus > 0
+        ? [
+            `  ⊘ plafond de la Manche au Trou ${evenement.plafond} —` +
+              ` ${evenement.pointsPerdus} pts perdus, ${evenement.reste} en banque`,
+          ]
+        : [`  ⊘ plafond de la Manche au Trou ${evenement.plafond} — ${evenement.reste} en banque`]
     case 'MANCHE_GAGNEE':
       return ['', `★ MANCHE GAGNÉE — Trou ${evenement.trou} contre ${evenement.cible}`]
     case 'MANCHE_PERDUE':

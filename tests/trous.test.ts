@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { avancer, coutDuTrou, plafondDeLaManche } from '../src/core/trous.js'
+import { REGLES_ECONOMIE } from '../src/presets/economie.js'
 import { REGLES_MANCHE } from '../src/presets/manche.js'
 
 describe('le cout des Trous [carnet §4.2]', () => {
@@ -21,6 +22,16 @@ describe('le cout des Trous [carnet §4.2]', () => {
   })
 })
 
+/**
+ * La conversion pure, sans le plafond ni la borne du report : ces tests-la parlent de la
+ * courbe des couts, et rien d'autre. Le plafond a son propre describe plus bas.
+ */
+const SANS_PLAFOND = {
+  ...REGLES_MANCHE,
+  plafondAuDelaDeLaCible: null,
+  reportMaximumEnTrous: null,
+}
+
 describe('la conversion en Trous', () => {
   it('avance d’un Trou par tranche de 30 en Rue I', () => {
     const avancee = avancer({ trou: 0, reste: 0 }, 90, REGLES_MANCHE)
@@ -41,7 +52,7 @@ describe('la conversion en Trous', () => {
 
   it('change de tarif en franchissant une Rue', () => {
     // 30 Trous a 30 = 900, puis le 31e coute 135
-    const avancee = avancer({ trou: 0, reste: 0 }, 900 + 135, REGLES_MANCHE)
+    const avancee = avancer({ trou: 0, reste: 0 }, 900 + 135, SANS_PLAFOND)
     expect(avancee.progression.trou).toBe(31)
     expect(avancee.progression.reste).toBe(0)
   })
@@ -53,7 +64,7 @@ describe('la conversion en Trous', () => {
   })
 
   it('s’arrête au Trou final', () => {
-    const avancee = avancer({ trou: 0, reste: 0 }, 10_000_000, REGLES_MANCHE)
+    const avancee = avancer({ trou: 0, reste: 0 }, 10_000_000, SANS_PLAFOND)
     expect(avancee.progression.trou).toBe(121)
   })
 
@@ -66,10 +77,16 @@ describe('la conversion en Trous', () => {
 })
 
 describe('le plafond d’avance [carnet §4.3, question §8.7]', () => {
-  const avecPlafond = { ...REGLES_MANCHE, cibleAdversaire: 6, plafondAuDelaDeLaCible: 6 }
+  // Le plafond seul : la borne du report a son propre describe.
+  const avecPlafond = {
+    ...REGLES_MANCHE,
+    cibleAdversaire: 6,
+    plafondAuDelaDeLaCible: 6,
+    reportMaximumEnTrous: null,
+  }
 
   it('sans plafond, un score énorme traverse la piste entière', () => {
-    const avancee = avancer({ trou: 0, reste: 0 }, 1_000_000, REGLES_MANCHE)
+    const avancee = avancer({ trou: 0, reste: 0 }, 1_000_000, SANS_PLAFOND)
     expect(avancee.progression.trou).toBe(121)
   })
 
@@ -111,6 +128,7 @@ describe('la borne du report [carnet §8 q4]', () => {
       ...REGLES_MANCHE,
       cibleAdversaire: 6,
       plafondAuDelaDeLaCible: 6,
+      reportMaximumEnTrous: null,
     })
     expect(avancee.progression.reste).toBe(100_000 - 12 * 30)
   })
@@ -143,5 +161,23 @@ describe('la borne du report [carnet §8 q4]', () => {
     const avancee = avancer({ trou: 0, reste: 0 }, 35, { ...REGLES_MANCHE, reportMaximumEnTrous: 2 })
     expect(avancee.progression.trou).toBe(1)
     expect(avancee.progression.reste).toBe(5)
+  })
+})
+
+describe('les réglages retenus pour §8.7', () => {
+  it('le plateau est d’accord avec le porte-monnaie', () => {
+    // `primeMax = 5` dit qu'au-dela de +5 Trous le depassement ne rapporte plus rien ;
+    // le plafond a 6 fait dire la meme chose a la piste.
+    const plafond = REGLES_MANCHE.plafondAuDelaDeLaCible
+    expect(plafond).toBe(6)
+    expect(REGLES_ECONOMIE.primeMax).toBe((plafond ?? 0) - 1)
+  })
+
+  it('la banque ne peut pas payer une Rue d’avance', () => {
+    expect(REGLES_MANCHE.reportMaximumEnTrous).toBe(3)
+    // Le risque mesure : 30 866 points de report en Rue IV, soit 42 Trous d'avance sur les
+    // 30 que compte la Rue. Bornee a 3 Trous, la banque ne peut plus payer une Rue entiere.
+    const rue = 30
+    expect(REGLES_MANCHE.reportMaximumEnTrous).toBeLessThan(rue)
   })
 })

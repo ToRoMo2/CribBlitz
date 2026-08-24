@@ -262,7 +262,8 @@ Rue IV   →  Manche 10          Manche 11          Manche 12 (ADVERSAIRE)
 ### 4.2 Le plateau et la conversion en Trous
 
 Chaque Trou coûte un nombre de points croissant. Le score d'une Donne est converti en
-Trous, le reste est reporté sur la Donne suivante.
+Trous, le reste est reporté sur la Donne suivante — dans la limite du plafond d'avance et de
+la borne du report, tous deux définis au §4.3.
 
 | Trous | Coût par Trou | Rue |
 |---|---|---|
@@ -285,16 +286,22 @@ un jour les reliques font croître les scores bien plus vite, cette courbe devra
 Méthode : itérer le coût de chaque Rue jusqu'à ce qu'elle rende ~10 Trous par Manche — le
 rythme de la cheville adverse — puis chercher l'échelle d'ensemble sur le taux de victoire.
 
-Mesure à 60 runs, par politique d'achat automatique :
+Mesure à 60 runs, par politique d'achat automatique, avec le plafond d'avance du §4.3 :
 
-| Politique | % gagné | Trou médian |
-|---|---|---|
-| n'achète rien | 0 % | 41 (mort Manche 5) |
-| Voies seules | 0 % | 66 |
-| reliques seules | 22 % | 98 |
-| achète tout | **58 %** | 121 |
+| Politique | % gagné | Trou médian | meurt surtout |
+|---|---|---|---|
+| n'achète rien | 0 % | 39 | Manches 4–5 |
+| Voies seules | 0 % | 55 | Manches 5–7 |
+| reliques seules | 2 % | 74 | Manches 6–9 |
+| achète tout | **37 %** | 99 | Manches 6–12 |
 
 Ne pas acheter, c'est mourir : la boutique n'est pas un supplément.
+
+Et la marge se resserre enfin Rue après Rue, ce que PROTOTYPE demandait sans qu'on sache
+l'obtenir. En « achète tout », l'avance médiane sur la cheville adverse tombe de **+5,5** en
+Rue I à **+4,7**, **+3,7**, puis **+1,5** en Rue IV, pendant que la survie descend de 100 % à
+**52 %**. La Rue IV est redevenue un mur qu'on aborde de justesse, au lieu d'une formalité
+qu'on n'atteignait jamais ou qu'on abordait la banque pleine.
 
 ### 4.3 Les cibles
 
@@ -315,11 +322,59 @@ cheville du joueur ne repart jamais de zéro. Valider une Manche, c'est avoir d�
 cheville adverse là où elle est postée. Elle avance d'une dizaine de Trous par Manche ;
 une Rue dont on ne tire pas au moins autant est un mur, pas une courbe.
 
-**Question ouverte soulevée par la mesure :** avec la courbe calibrée, environ 60 % des
-runs gagnantes franchissent le Trou 121 **avant la Manche 10**, par la règle du §8.5. Les
-vainqueurs ne rencontrent donc jamais l'Adversaire de la Rue IV, et la structure en 12
-Manches devient partiellement décorative. Ralentir la cheville demanderait de remonter les
-coûts, ce qui ferait s'effondrer le taux de victoire. Arbitrage non tranché.
+#### Le plafond d'avance **[RÈGLE]**
+
+La cheville du joueur ne peut pas dépasser **cible + 6** pendant une Manche. Le surplus n'est
+pas converti : il part au report, lui-même borné à **3 Trous d'avance**. Au-delà, les points
+sont perdus.
+
+Ces deux nombres tranchent la question §8.7, et ils ont été trouvés par la mesure, pas
+choisis. Le problème : avec la courbe calibrée seule, ~60 % des runs gagnantes franchissaient
+le Trou 121 **avant la Manche 10**, par la règle du §8.5. Les vainqueurs ne rencontraient
+jamais l'Adversaire de la Rue IV, et la structure en 12 Manches était à moitié décorative.
+
+Trois choses ont été mesurées, dans cet ordre.
+
+**1. Durcir la courbe des coûts ne marche pas.** Trois courbes plus raides ont été essayées,
+jusqu'à 55/180/380/800/2200. Aucune ne repousse la victoire : la Manche de victoire médiane
+reste 9, et la part de victoires avant la Manche 10 *monte* jusqu'à 68 %. La raison est un
+effet de sélection — durcir tue les runs faibles, celles qui auraient traîné jusqu'à la
+Manche 12, et laisse les runs fortes, qui sont précisément celles qui franchissent la ligne
+en avance. C'est structurel : pour que 12 Manches remplissent 121 Trous, il faut un rythme de
+~10 Trous par Manche, et le jeu en produit 15 à 23. Aucun réglage de coût ne peut y changer
+quoi que ce soit, puisque c'est l'arithmétique de la piste.
+
+**2. Le plafond seul règle le calendrier, mais vide la Rue IV.** À 6, plus une seule victoire
+avant la Manche 10, et les 4 Adversaires affrontés. Mais le report montait alors à **30 866
+points médians en Rue IV**, où un Trou coûte 720 : 42 Trous payés d'avance sur les 30 que
+compte la Rue. Le joueur arrivait devant l'Adversaire de la Rue IV avec la Rue déjà achetée.
+Le taux de victoire ne bougeait pas d'un point — plus rien ne se décidait.
+
+**3. Borner le report rend son coût au sur-score.** Le couple 6 / 3 Trous ramène la politique
+d'achat naïve de 62 % à **37 %**, et étale les morts de la Manche 3 à la Manche 12 au lieu de
+les concentrer sur les Manches 6 à 11.
+
+| | sans plafond | plafond 6 | plafond 6 + report 3 |
+|---|---|---|---|
+| victoires avant la Manche 10 | 59 % | 0 % | 0 % |
+| Adversaires affrontés | 3/4 | 4/4 | 4/4 |
+| report médian en Rue IV | 554 | 30 866 | 2 160 |
+| « achète tout » | 62 % | 62 % | **37 %** |
+| « reliques seules » | 20 % | 20 % | 2 % |
+
+Le 6 n'est pas arbitraire : `primeMax = 5` (§4.5) dit déjà qu'au-delà de +5 Trous le
+dépassement ne rapporte plus rien. Le plafond fait seulement dire au plateau ce que le
+porte-monnaie disait depuis l'étape 2.
+
+Ce que ça coûte, et qu'il faut assumer : la marge cesse de se resserrer Rue après Rue, elle
+se fige au plafond ; le §8.5 reste vrai comme règle mais devient inatteignable avant la
+dernière Manche ; et le report du §8 q4 n'est plus intégral. Une cheville qui se bloque et des
+points qui s'évaporent ne peuvent pas le faire en silence : l'événement `CHEVILLE_PLAFONNEE`
+les annonce, comme `CIBLE_AVANCE` annonce la cheville adverse.
+
+**Reste ouvert :** « reliques seules » tombe à 2 %, ce qui est peut-être trop punitif pour une
+politique qui n'est pas absurde. Et le taux de la politique naïve, même à 37 %, n'est pas
+« bas » au sens de PROTOTYPE.
 
 ### 4.4 Les Adversaires
 
@@ -443,21 +498,28 @@ trois autres couleurs. La mécanique de deckbuilding est déjà écrite dans les
 2. **La Retourne est-elle unique par Donne ou par Manche ?** → **Par Donne.** C'est
    l'injecteur de variance principal. Un paquet de 52 est mélangé par Manche et tiré sans
    remise, donc les Retournes d'une même Manche sont toutes différentes.
-4. **Le report des points non convertis entre Donnes ?** → **Oui, reporté** (`reporterLeReste`).
-   C'est ce qui rend une petite Donne utile. Depuis l'étape 4, le report franchit aussi les
-   Manches, puisque la piste est continue.
+4. **Le report des points non convertis entre Donnes ?** → **Oui, reporté** (`reporterLeReste`),
+   mais **borné à 3 Trous d'avance** depuis §4.3. C'est ce qui rend une petite Donne utile ;
+   la borne est ce qui empêche une grosse Donne de payer une Rue entière d'avance. Le report
+   franchit les Manches, puisque la piste est continue.
 5. **Que se passe-t-il si la cheville dépasse 121 en cours de Rue ?** → **On gagne, la run
-   s'arrête.** Mesuré à l'étape 4 : ça arrive souvent — environ 60 % des runs gagnantes
-   finissent avant la Manche 10. Voir la question soulevée au §4.3.
+   s'arrête.** La règle tient toujours, mais depuis le plafond d'avance (§4.3) elle n'est plus
+   atteignable avant la dernière Manche : le plafond de la Manche 12 est le seul qui vaille
+   121. En pratique, « la piste est l'arbitre, pas le calendrier » est devenu « la piste est
+   l'arbitre, dans les limites que le calendrier lui pose ».
+7. **L'Adversaire de la Rue IV est-il jouable ?** → **Oui, depuis le plafond d'avance.** Sans
+   lui, 59 % des vainqueurs ne le rencontraient jamais ; avec lui, 100 % des runs gagnantes
+   affrontent les 4 Adversaires. Le détail de la mesure et de ce qu'elle a écarté est au §4.3.
 
 ### Encore ouvertes
 
 3. **La Pose est-elle obligatoire ou optionnelle chaque Donne ?** Aujourd'hui elle est
    obligatoire : on peut encaisser à tout moment, mais pas la sauter.
 6. **Nom du jeu.** « Boîte » reste un nom de code.
-7. **L'Adversaire de la Rue IV est-il jouable ?** Soulevée par la mesure de l'étape 4 : les
-   vainqueurs franchissent souvent la ligne avant de l'affronter (§4.3).
 8. **Le `multiplicateurMain`** (×2 sur le seul Compte de la main, calibré à l'étape 1) ne
    figure pas dans la formule du §2.1. Décision provisoire : il est affiché comme un **bonus
    permanent**, annoncé avant le comptage. Reste à décider s'il doit être fondu dans les
    niveaux de Voie, devenir un bonus de Mult, ou rester un troisième facteur.
+9. **Le taux de victoire reste haut pour une politique d'achat naïve** : 37 % en « achète
+   tout », quand PROTOTYPE le veut « bas et non nul ». Ni le plafond ni la courbe des coûts
+   n'y touchent — les deux ont été mesurés. À reprendre séparément.

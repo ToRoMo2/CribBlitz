@@ -6,7 +6,7 @@
  * cheville du joueur ne repart jamais de zero, donc valider une Manche, c'est avoir depasse
  * la cheville adverse la ou elle est postee.
  *
- * [À CALIBRER PAR SIMULATION] — c'est le travail de l'etape 4, et il se fait en chiffres.
+ * CALIBRE a l'etape 4 (`npm run sim -- --runs`).
  */
 export interface ReglesRun {
   readonly nombreDeManches: number
@@ -33,8 +33,11 @@ export interface ReglesRun {
  * interpolent jusqu'au Trou 121, une Rue par tranche de trois.
  *
  * L'ecart entre deux cibles reste presque constant — une dizaine de Trous — alors que le
- * cout d'un Trou est multiplie par 275 entre la Rue I et la Rue IV. C'est la que se joue
- * toute la question de l'etape.
+ * cout d'un Trou est multiplie par 24 entre la Rue I et la Rue IV.
+ *
+ * Ce sont ces cibles que le plafond d'avance borne desormais : la cheville ne peut pas
+ * depasser `cible + 6`, donc la piste ne se traverse plus en avance sur le calendrier
+ * (carnet §4.3, question §8.7 tranchee).
  */
 const CIBLES = [6, 14, 24, 34, 45, 57, 68, 78, 88, 98, 109, 121] as const
 

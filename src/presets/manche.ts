@@ -70,6 +70,17 @@ export const REGLES_MANCHE: ReglesManche = {
   victoireSiEgalite: true,
   revelerRetourneAvantDefausse: false,
   boiteScellee: false,
-  plafondAuDelaDeLaCible: null,
-  reportMaximumEnTrous: null,
+  // Trancher la question §8.7 (etape 4). Sans plafond, ~60 % des runs gagnantes franchissaient
+  // le Trou 121 avant la Manche 10 : la Rue IV et son Adversaire etaient decoratifs. Durcir la
+  // courbe des couts ne changeait rien — mesure a l'appui, ca tue les runs faibles sans jamais
+  // retarder les fortes. Seul le plafond agit sur le calendrier.
+  //
+  // 6, parce que `primeMax = 5` dit deja qu'au-dela de +5 Trous le depassement ne rapporte
+  // plus rien : le plateau se contente d'etre d'accord avec le porte-monnaie.
+  plafondAuDelaDeLaCible: 6,
+  // Le plafond seul ne supprime pas le depassement, il le met en banque : mesure a 30 866
+  // points de report medians en Rue IV, soit 42 Trous payes d'avance sur les 30 qu'elle compte.
+  // La fin de run arrivait donc jouee d'avance. Borner la banque a 3 Trous rend au sur-score
+  // son cout, et c'est ce qui ramene la politique d'achat naive de 62 % a 37 %.
+  reportMaximumEnTrous: 3,
 }
