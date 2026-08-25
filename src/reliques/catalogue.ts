@@ -11,6 +11,11 @@ import { LE_FUNAMBULE } from './le-funambule.js'
 import { L_EQUILIBRISTE } from './l-equilibriste.js'
 import { LE_METRONOME } from './le-metronome.js'
 import { LE_CONTREPOIDS } from './le-contrepoids.js'
+import { LE_CHANGEUR } from './le-changeur.js'
+import { LE_BEGUE } from './le-begue.js'
+import { LA_LOUPE } from './la-loupe.js'
+import { LE_PURISTE } from './le-puriste.js'
+import { LE_PRISME } from './le-prisme.js'
 
 /**
  * Le catalogue (carnet §5.2, §5.3). Une simple liste de donnees : ajouter une relique, c'est
@@ -33,6 +38,12 @@ export const RELIQUES: readonly Modificateur[] = [
   L_EQUILIBRISTE,
   LE_METRONOME,
   LE_CONTREPOIDS,
+  // Etape 5 — la famille Compte, le plus gros contingent du §5.3 (30 %).
+  LE_CHANGEUR,
+  LE_BEGUE,
+  LA_LOUPE,
+  LE_PURISTE,
+  LE_PRISME,
 ]
 
 export function reliqueParId(id: string): Modificateur {
@@ -54,4 +65,9 @@ export {
   L_EQUILIBRISTE,
   LE_METRONOME,
   LE_CONTREPOIDS,
+  LE_CHANGEUR,
+  LE_BEGUE,
+  LA_LOUPE,
+  LE_PURISTE,
+  LE_PRISME,
 }

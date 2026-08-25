@@ -30,6 +30,11 @@ export const REGLES_BOUTIQUE: ReglesBoutique = {
     'l-equilibriste': 5,
     'le-metronome': 6,
     'le-contrepoids': 4,
+    'le-changeur': 6,
+    'le-begue': 6,
+    'la-loupe': 5,
+    'le-puriste': 5,
+    'le-prisme': 5,
   },
 }
 

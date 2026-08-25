@@ -20,6 +20,11 @@ import {
   L_EQUILIBRISTE,
   LE_METRONOME,
   LE_CONTREPOIDS,
+  LE_CHANGEUR,
+  LE_BEGUE,
+  LA_LOUPE,
+  LE_PURISTE,
+  LE_PRISME,
 } from '../src/reliques/catalogue.js'
 import { LE_COMPTEUR } from '../src/reliques/le-compteur.js'
 import { LA_FOURCHE } from '../src/reliques/la-fourche.js'
@@ -363,5 +368,126 @@ describe('le catalogue de l’étape 5', () => {
     for (const relique of RELIQUES) {
       expect(REGLES_BOUTIQUE.coutsReliques[relique.id]).toBeDefined()
     }
+  })
+})
+
+// ── Étape 5 : la famille Compte ──
+
+/** Les combinaisons d'un type après application d'une relique. */
+function apres(relique: Modificateur, main: string, retourne: string, estBoite = false) {
+  const cartes = parseCartes(main)
+  const carte = parseCarte(retourne)
+  return plierCombinaisons([relique], compterMain(cartes, carte, estBoite), {
+    origine: estBoite ? 'BOITE' : 'MAIN', cartes, retourne: carte,
+  })
+}
+
+describe('Le Changeur — les quinzaines se font à 14', () => {
+  it('compte les sommes de 14 et plus celles de 15', () => {
+    // 9♠ 5♥ : 14. 9♠ 6♦ : 15, qui ne compte plus.
+    const quinzaines = apres(LE_CHANGEUR, '9♠ 5♥ 6♦ R♣', '2♠').filter((c) => c.type === 'QUINZAINE')
+    const paires = quinzaines.map((c) => c.cartes.map((x) => x.rang).sort().join('+'))
+    expect(paires).toContain('5+9')
+    expect(paires).not.toContain('6+9')
+  })
+
+  it('ne touche pas à la valeur d’une quinzaine — le §1.4 tient', () => {
+    const quinzaines = apres(LE_CHANGEUR, '9♠ 5♥ 6♦ R♣', '2♠').filter((c) => c.type === 'QUINZAINE')
+    expect(quinzaines.every((c) => c.points === 2)).toBe(true)
+  })
+
+  it('laisse les autres Voies intactes', () => {
+    const sans = compterMain(parseCartes('9♠ 5♥ 6♦ R♣'), parseCarte('2♠'), false)
+    const avec = apres(LE_CHANGEUR, '9♠ 5♥ 6♦ R♣', '2♠')
+    for (const type of ['PAIRE', 'SUITE', 'COULEUR', 'VALET'] as const) {
+      expect(avec.filter((c) => c.type === type)).toHaveLength(
+        sans.filter((c) => c.type === type).length,
+      )
+    }
+  })
+})
+
+describe('Le Bègue — les rangs voisins s’apparient', () => {
+  it('7 et 8 forment une paire', () => {
+    const paires = apres(LE_BEGUE, '7♠ 8♥ R♣ D♦', '2♠').filter((c) => c.type === 'PAIRE')
+    expect(paires.some((c) => c.cartes.map((x) => x.rang).sort().join('+') === '7+8')).toBe(true)
+  })
+
+  it('garde les vraies paires — il étend, il ne remplace pas', () => {
+    const paires = apres(LE_BEGUE, '7♠ 7♥ R♣ D♦', '2♠').filter((c) => c.type === 'PAIRE')
+    expect(paires.some((c) => c.cartes.every((x) => x.rang === '7'))).toBe(true)
+  })
+
+  it('deux rangs d’écart ne s’apparient pas', () => {
+    const paires = apres(LE_BEGUE, '7♠ 9♥ 2♣ 4♦', 'A♠').filter((c) => c.type === 'PAIRE')
+    expect(paires.some((c) => c.cartes.map((x) => x.rang).sort().join('+') === '7+9')).toBe(false)
+  })
+})
+
+describe('La Loupe — le sommet compté deux fois', () => {
+  it('duplique la plus grosse combinaison', () => {
+    const sans = compterMain(parseCartes('4♠ 5♥ 6♦ 7♣'), parseCarte('R♠'), false)
+    const avec = apres(LA_LOUPE, '4♠ 5♥ 6♦ 7♣', 'R♠')
+    const max = Math.max(...sans.map((c) => c.points))
+    expect(avec).toHaveLength(sans.length + 1)
+    expect(avec.filter((c) => c.points === max)).toHaveLength(
+      sans.filter((c) => c.points === max).length + 1,
+    )
+  })
+
+  it('ne fait rien sur un Compte vide', () => {
+    const avec = apres(LA_LOUPE, '2♠ 4♥ 8♦ R♣', '6♥')
+    const sans = compterMain(parseCartes('2♠ 4♥ 8♦ R♣'), parseCarte('6♥'), false)
+    expect(avec.length).toBe(sans.length === 0 ? 0 : sans.length + 1)
+  })
+})
+
+describe('Le Puriste — la pureté paie', () => {
+  it('triple le Mult quand une seule Voie se déclenche', () => {
+    // A♠ 2♠ 4♠ A♥ + 2♥ : deux paires et rien d'autre — ni quinzaine, ni suite, ni couleur.
+    const brut = calculerScore(combinaisons('A♠ 2♠ 4♠ A♥', '2♥'))
+    expect(new Set(brut.occurrences.map((o) => o.combinaison.type))).toEqual(new Set(['PAIRE']))
+
+    const avec = plierScore([LE_PURISTE], { points: brut.points, mult: brut.mult }, {
+      origine: 'MAIN', occurrences: brut.occurrences, effets: [],
+    })
+    expect(avec.mult).toBe(brut.mult * 3)
+  })
+
+  it('ne fait rien quand deux Voies ou plus se déclenchent', () => {
+    const brut = calculerScore(combinaisons('4♠ 5♥ 5♦ 6♣', '6♠'))
+    expect(new Set(brut.occurrences.map((o) => o.combinaison.type)).size).toBeGreaterThan(1)
+    const avec = plierScore([LE_PURISTE], { points: brut.points, mult: brut.mult }, {
+      origine: 'MAIN', occurrences: brut.occurrences, effets: [],
+    })
+    expect(avec.mult).toBe(brut.mult)
+  })
+
+  it('n’agit pas sur la Boîte', () => {
+    const brut = calculerScore(combinaisons('A♠ 2♠ 4♠ A♥', '2♥', true))
+    const avec = plierScore([LE_PURISTE], { points: brut.points, mult: brut.mult }, {
+      origine: 'BOITE', occurrences: brut.occurrences, effets: [],
+    })
+    expect(avec.mult).toBe(brut.mult)
+  })
+})
+
+describe('Le Prisme — la Couleur tolère une carte dépareillée', () => {
+  it('donne une Couleur là où le cœur n’en voit aucune', () => {
+    const sans = compterMain(parseCartes('2♥ 5♥ 8♥ R♠'), parseCarte('9♥'), false)
+    expect(sans.filter((c) => c.type === 'COULEUR')).toHaveLength(0)
+    const avec = apres(LE_PRISME, '2♥ 5♥ 8♥ R♠', '9♥').filter((c) => c.type === 'COULEUR')
+    expect(avec).toHaveLength(1)
+    expect(avec[0]?.points).toBe(4)
+  })
+
+  it('refuse deux cartes dépareillées', () => {
+    const avec = apres(LE_PRISME, '2♥ 5♥ 8♥ R♠', '9♦').filter((c) => c.type === 'COULEUR')
+    expect(avec).toHaveLength(0)
+  })
+
+  it('une couleur pleine vaut toujours ses cinq cartes', () => {
+    const avec = apres(LE_PRISME, '2♥ 5♥ 8♥ R♥', '9♥').filter((c) => c.type === 'COULEUR')
+    expect(avec[0]?.points).toBe(5)
   })
 })
