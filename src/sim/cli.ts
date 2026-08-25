@@ -146,8 +146,14 @@ async function demanderPose(clavier: Clavier, state: EtatPartie): Promise<Action
       .join('   ')
 
     console.log('')
+    // La Retourne est revelee juste avant la Pose et ne reapparait qu'au Compte : sans elle
+    // a l'ecran, le joueur pose a l'aveugle sur la carte qui va decider de sa main.
+    if (state.donne.retourne !== null) {
+      console.log(`  RETOURNE ${formatCarte(state.donne.retourne)}`)
+    }
     console.log(
-      `  POSE   total ${pose.total}/${state.config.pose.seuil}   acquis ${pose.points} pts`,
+      `  POSE   total ${pose.total}/${state.config.pose.seuil}   acquis ${pose.points} pts` +
+        `   → +${pose.points * state.config.pose.multParPointDePose} Mult`,
     )
     console.log(`         ${restantes}`)
     const reponse = (await clavier.demander('  poser <index>, ou (e)ncaisser > '))

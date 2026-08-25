@@ -93,6 +93,25 @@ describe('La Fourche — un rang manquant', () => {
     expect(suites[0]?.points).toBe(3)
   })
 
+  it('un seul trou sur tout le groupe, pas un trou par palier', () => {
+    // Le cas qui surprend en partie : une Boite 3 5 6 7 7 7 9 9 10. Le trou est consomme
+    // entre le 3 et le 5, donc la suite s'arrete au 7 — le 9 demanderait un second trou.
+    // La relique dit « un rang manquant », au singulier, et c'est la regle.
+    const cartes = parseCartes('5♥ 10♥ 9♥ 6♥ 9♦ 7♦ 3♠ 7♠')
+    const retourne = parseCarte('7♥')
+    const apres = plierCombinaisons([LA_FOURCHE], compterMain(cartes, retourne, true), {
+      origine: 'BOITE', cartes, retourne,
+    })
+    const suites = apres.filter((c) => c.type === 'SUITE')
+    // Trois exemplaires, un par 7, chacun long de 4 cartes : 3-5-6-7.
+    expect(suites).toHaveLength(3)
+    expect(suites.every((suite) => suite.points === 4)).toBe(true)
+    const rangs = suites[0]?.cartes.map((carte) => carte.rang)
+    expect(rangs).toEqual(['3', '5', '6', '7'])
+    // Aucune suite ne contient de 9 : il est de l'autre cote du second trou.
+    expect(suites.some((suite) => suite.cartes.some((carte) => carte.rang === '9'))).toBe(false)
+  })
+
   it('laisse une vraie suite intacte (zéro trou)', () => {
     const cartes = parseCartes('4♠ 5♥ 6♦ R♣')
     const retourne = parseCarte('9♠')
