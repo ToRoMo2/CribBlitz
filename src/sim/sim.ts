@@ -1,6 +1,5 @@
 import process from 'node:process'
 import { CONFIG_PAR_DEFAUT, type ConfigPartie } from '../presets/index.js'
-import { RELIQUES } from '../reliques/catalogue.js'
 import {
   mesurerDesaccords,
   mesurerSynergie,
@@ -10,7 +9,15 @@ import {
   type Desaccords,
   type RapportSynergie,
 } from './harnais.js'
-import { POLITIQUES, simulerRuns, type BilanRun } from './runs.js'
+import {
+  mesurerDominance,
+  politiqueParNom,
+  POLITIQUES,
+  simulerRuns,
+  type BilanDominance,
+  type BilanRun,
+} from './runs.js'
+import { RELIQUES } from '../reliques/catalogue.js'
 import {
   OPTIONS_PAR_DEFAUT,
   STRATEGIES,
@@ -241,6 +248,25 @@ function main(): void {
   const multiplicateurMain = brutMult === undefined ? CONFIG_PAR_DEFAUT.multiplicateurMain : Number(brutMult)
   const config: ConfigPartie = { ...CONFIG_PAR_DEFAUT, multiplicateurMain }
 
+  if (process.argv.includes('--dominance')) {
+    const nombre = entierArgument('runs', 60)
+    const debut = Date.now()
+    console.log('')
+    console.log('BOÎTE — la dominance du catalogue (étape 5)')
+    console.log(
+      `${nombre} runs par politique, mêmes graines. ${RELIQUES.length} reliques au catalogue.`,
+    )
+    for (const nom of ['tout', 'hasard']) {
+      afficherDominance(
+        nom,
+        mesurerDominance(politiqueParNom(nom), nombre, graine, options, RELIQUES),
+      )
+    }
+    console.log(`  (${((Date.now() - debut) / 1000).toFixed(1)} s)
+`)
+    return
+  }
+
   if (process.argv.includes('--runs')) {
     const nombre = entierArgument('runs', 60)
     const debutRuns = Date.now()
@@ -295,3 +321,33 @@ function main(): void {
 }
 
 main()
+
+/**
+ * Le tableau de l'etape 5. « prise / prenable » dit si la relique est voulue quand elle est
+ * disponible ; « victoires » dit si elle est une option ou une condition.
+ */
+function afficherDominance(nomPolitique: string, bilan: BilanDominance): void {
+  console.log('')
+  console.log(`  politique « ${nomPolitique} » — ${bilan.victoires}/${bilan.runs} runs gagnées`)
+  console.log('  relique              famille     prenable   prise   refus   % des victoires')
+  console.log('  ' + '─'.repeat(74))
+
+  const triees = [...bilan.reliques].sort(
+    (a, b) => b.presenceDansLesVictoires - a.presenceDansLesVictoires,
+  )
+  for (const relique of triees) {
+    const refus = relique.prenable - relique.prise
+    const part = Math.round(100 * relique.presenceDansLesVictoires)
+    // Au-dela de 80 %, la relique n'est plus une option : c'est une condition (PROTOTYPE §5).
+    const alerte = part >= 80 ? ' ◄ condition' : ''
+    console.log(
+      `  ${relique.nom.padEnd(20)} ${relique.famille.padEnd(11)}` +
+        `${String(relique.prenable).padStart(8)}${String(relique.prise).padStart(8)}` +
+        `${String(refus).padStart(8)}${String(part + ' %').padStart(15)}${alerte}`,
+    )
+  }
+  console.log(
+    `  équipements finaux distincts parmi les victoires : ${bilan.equipementsDistincts}` +
+      ` sur ${bilan.victoires}`,
+  )
+}

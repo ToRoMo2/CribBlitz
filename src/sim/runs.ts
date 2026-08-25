@@ -1,4 +1,4 @@
-import { acheterRelique, ameliorerVoie, genererOffre } from '../core/boutique.js'
+import { acheterRelique, ameliorerVoie, genererOffre, type Offre } from '../core/boutique.js'
 import { creerRng, type Rng } from '../core/rng.js'
 import {
   adversaireDeLaManche,
@@ -10,6 +10,7 @@ import {
 } from '../core/run.js'
 import { coutDuTrou } from '../core/trous.js'
 import { REGLES_RUN, rueDeLaManche } from '../presets/run.js'
+import type { Modificateur } from '../core/modificateurs.js'
 import { choisirPose, strategieParNom, type OptionsStrategie } from './strategies.js'
 
 /**
@@ -39,6 +40,17 @@ export interface MesureManche {
   readonly resteApres: number
 }
 
+/**
+ * Ce qui s'est passe a une boutique. C'est la matiere de l'etape 5 : une relique refusee
+ * alors qu'elle etait offerte, abordable et qu'il restait une place, c'est une relique que
+ * le joueur ne veut pas — et une relique jamais refusee est une condition, pas un choix.
+ */
+export interface MesureBoutique {
+  readonly indexManche: number
+  readonly offertes: readonly { readonly id: string; readonly prenable: boolean }[]
+  readonly prises: readonly string[]
+}
+
 export interface MesuresRun {
   readonly graine: number
   readonly gagnee: boolean
@@ -46,6 +58,9 @@ export interface MesuresRun {
   readonly mancheDeMort: number | null
   readonly trouAtteint: number
   readonly manches: readonly MesureManche[]
+  readonly boutiques: readonly MesureBoutique[]
+  /** Les reliques equipees a la fin de la run. */
+  readonly equipees: readonly string[]
 }
 
 /**
@@ -55,14 +70,18 @@ export interface MesuresRun {
 export interface PolitiqueAchat {
   readonly nom: string
   readonly description: string
-  readonly acheter: (run: EtatRun) => EtatRun
+  /** Rend la run apres achats, et le releve de ce que la boutique avait propose. */
+  readonly acheter: (run: EtatRun) => { run: EtatRun; boutique: MesureBoutique }
 }
 
 export const POLITIQUES: readonly PolitiqueAchat[] = [
   {
     nom: 'rien',
     description: 'n’achète jamais — le plancher',
-    acheter: (run) => run,
+    acheter: (run) => {
+      const genere = genererOffre(run)
+      return { run: { ...run, rng: genere.rng }, boutique: releve(run, genere.offre, []) }
+    },
   },
   {
     nom: 'voies',
@@ -79,6 +98,11 @@ export const POLITIQUES: readonly PolitiqueAchat[] = [
     description: 'achète tout ce qui est abordable — le plafond naïf',
     acheter: (run) => acheterSelon(run, { reliques: true, voies: true }),
   },
+  {
+    nom: 'hasard',
+    description: 'prend une relique au hasard dans l’offre — le témoin du choix',
+    acheter: (run) => acheterSelon(run, { reliques: true, voies: true, auHasard: true }),
+  },
 ]
 
 export function politiqueParNom(nom: string): PolitiqueAchat {
@@ -93,22 +117,53 @@ export function politiqueParNom(nom: string): PolitiqueAchat {
  * Achete dans l'ordre : les reliques d'abord (elles occupent un emplacement rare), puis les
  * niveaux de Voie. Aucune relance : on mesure la courbe, pas l'optimisation de boutique.
  */
-function acheterSelon(run: EtatRun, quoi: { reliques: boolean; voies: boolean }): EtatRun {
+function acheterSelon(
+  run: EtatRun,
+  quoi: { reliques: boolean; voies: boolean; auHasard?: boolean },
+): { run: EtatRun; boutique: MesureBoutique } {
   const genere = genererOffre(run)
   let courant: EtatRun = { ...run, rng: genere.rng }
+  const prises: string[] = []
 
   if (quoi.reliques) {
-    for (const offre of genere.offre.reliques) {
+    // « au hasard » ne regarde qu'une des deux offres, tiree sans preference : c'est le
+    // temoin qui dit si choisir vaut mieux que prendre.
+    const candidates = quoi.auHasard === true
+      ? genere.offre.reliques.slice(offreTiree(run, genere.offre.reliques.length)).slice(0, 1)
+      : genere.offre.reliques
+
+    for (const offre of candidates) {
       if (!offre.placeDisponible) break
       if (courant.reliquesEquipees.length >= courant.reglesRun.emplacementsReliques) break
       if (courant.argent < offre.cout) continue
       courant = acheterRelique(courant, offre)
+      prises.push(offre.relique.id)
     }
   }
   if (quoi.voies && courant.argent >= genere.offre.voie.cout) {
     courant = ameliorerVoie(courant, genere.offre.voie)
   }
-  return courant
+  return { run: courant, boutique: releve(run, genere.offre, prises) }
+}
+
+/** Un index d'offre derive de l'etat, sans consommer le PRNG du coeur. */
+function offreTiree(run: EtatRun, combien: number): number {
+  return combien === 0 ? 0 : (run.indexManche + run.argent) % combien
+}
+
+/**
+ * Une relique est « prenable » si elle etait offerte, abordable, et qu'il restait une place.
+ * C'est la seule situation ou la refuser est une decision et non une contrainte.
+ */
+function releve(run: EtatRun, offre: Offre, prises: readonly string[]): MesureBoutique {
+  return {
+    indexManche: run.indexManche,
+    offertes: offre.reliques.map((o) => ({
+      id: o.relique.id,
+      prenable: o.abordable && o.placeDisponible,
+    })),
+    prises: [...prises],
+  }
 }
 
 export function jouerRunComplete(
@@ -123,6 +178,7 @@ export function jouerRunComplete(
   let rng: Rng = creerRng(graine * 7919 + 13)
 
   const manches: MesureManche[] = []
+  const boutiques: MesureBoutique[] = []
   let trouAvant = run.progression.trou
   let coutAuDepart = coutDuTrou(trouAvant + 1, run.manche.config.manche)
 
@@ -133,8 +189,9 @@ export function jouerRunComplete(
     }
     if (run.statut === 'BOUTIQUE') {
       manches.push(mesurer(run, trouAvant, coutAuDepart))
-      run = politique.acheter(run)
-      run = commencerMancheSuivante(run).run
+      const apres = politique.acheter(run)
+      boutiques.push(apres.boutique)
+      run = commencerMancheSuivante(apres.run).run
       trouAvant = run.progression.trou
       coutAuDepart = coutDuTrou(trouAvant + 1, run.manche.config.manche)
       continue
@@ -156,6 +213,8 @@ export function jouerRunComplete(
     mancheDeMort: run.statut === 'PERDUE' && perdue !== undefined ? perdue.index : null,
     trouAtteint: run.manche.trou,
     manches,
+    boutiques,
+    equipees: run.reliquesEquipees.map((relique) => relique.id),
   }
 }
 
@@ -208,6 +267,75 @@ export interface BilanRun {
   /** Repartition des Manches de mort, index 0 a 11. */
   readonly mortsParManche: readonly number[]
   readonly rues: readonly BilanRue[]
+}
+
+export interface DominanceRelique {
+  readonly id: string
+  readonly nom: string
+  readonly famille: string
+  /** Fois ou elle etait offerte, abordable, et qu'il restait une place. */
+  readonly prenable: number
+  readonly prise: number
+  /** Part des runs GAGNANTES qui la portaient a la fin. Le verdict de l'etape 5. */
+  readonly presenceDansLesVictoires: number
+}
+
+export interface BilanDominance {
+  readonly runs: number
+  readonly victoires: number
+  readonly reliques: readonly DominanceRelique[]
+  /** Nombre d'equipements finaux distincts parmi les runs gagnantes. */
+  readonly equipementsDistincts: number
+}
+
+/**
+ * La mesure de l'etape 5. Une relique presente dans 80 % des victoires n'est pas une option,
+ * c'est une condition ; une relique jamais prise alors qu'elle etait prenable est du contenu
+ * mort. Les deux se lisent ici.
+ */
+export function mesurerDominance(
+  politique: PolitiqueAchat,
+  nombre: number,
+  graineDepart: number,
+  options: OptionsStrategie,
+  catalogue: readonly Modificateur[],
+  optionsRun: OptionsRun = {},
+): BilanDominance {
+  const mesures = Array.from({ length: nombre }, (_, i) =>
+    jouerRunComplete(graineDepart + i, politique, options, optionsRun))
+  const gagnantes = mesures.filter((mesure) => mesure.gagnee)
+
+  const reliques = catalogue.map((relique) => {
+    let prenable = 0
+    let prise = 0
+    for (const mesure of mesures) {
+      for (const boutique of mesure.boutiques) {
+        const offerte = boutique.offertes.find((o) => o.id === relique.id)
+        if (offerte?.prenable === true) prenable++
+        if (boutique.prises.includes(relique.id)) prise++
+      }
+    }
+    const portee = gagnantes.filter((mesure) => mesure.equipees.includes(relique.id)).length
+    return {
+      id: relique.id,
+      nom: relique.nom,
+      famille: relique.famille,
+      prenable,
+      prise,
+      presenceDansLesVictoires: gagnantes.length === 0 ? 0 : portee / gagnantes.length,
+    }
+  })
+
+  const equipements = new Set(
+    gagnantes.map((mesure) => [...mesure.equipees].sort().join('+')),
+  )
+
+  return {
+    runs: nombre,
+    victoires: gagnantes.length,
+    reliques,
+    equipementsDistincts: equipements.size,
+  }
 }
 
 export function simulerRuns(
