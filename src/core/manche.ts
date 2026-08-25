@@ -154,7 +154,15 @@ function terminerDonne(state: EtatPartie, pose: EtatPose, events: Evenement[]): 
 
   // Le Cran d'Arret : la Pose terminee sans explosion produit un effet que le Compte qui
   // suit — celui de cette meme Donne — consomme. Aucun etat inter-Donne n'est necessaire.
-  const effets = collecterEncaissement(state.modificateurs, { explosee: pose.explosee })
+  const effets = collecterEncaissement(state.modificateurs, {
+    explosee: pose.explosee,
+    points: pose.points,
+    pointsPerdus: pose.pointsPerdus,
+    total: pose.total,
+    seuil: state.config.pose.seuil,
+    posees: pose.posees.length,
+    restantes: pose.enMain.length,
+  })
 
   // La Pose n'ajoute plus ses points au score : elle multiplie celui de la main (carnet
   // §1.3, §2.1). Mesure a l'appui, ajoutes bruts ils pesaient 4,2 % d'une Donne de Rue I et

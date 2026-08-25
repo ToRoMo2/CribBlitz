@@ -26,6 +26,10 @@ export const REGLES_BOUTIQUE: ReglesBoutique = {
     'le-cran-d-arret': 4,
     'le-pendu': 5,
     'l-usurier': 3,
+    'le-funambule': 5,
+    'l-equilibriste': 5,
+    'le-metronome': 6,
+    'le-contrepoids': 4,
   },
 }
 

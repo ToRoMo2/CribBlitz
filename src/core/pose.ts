@@ -9,6 +9,8 @@ export interface EtatPose {
   readonly points: number
   readonly terminee: boolean
   readonly explosee: boolean
+  /** Ce que l'explosion a emporte. Zero tant qu'elle n'a pas eu lieu. */
+  readonly pointsPerdus: number
 }
 
 export interface ResultatPose {
@@ -17,7 +19,15 @@ export interface ResultatPose {
 }
 
 export function creerPose(cartes: readonly Carte[]): EtatPose {
-  return { enMain: [...cartes], posees: [], total: 0, points: 0, terminee: false, explosee: false }
+  return {
+    enMain: [...cartes],
+    posees: [],
+    total: 0,
+    points: 0,
+    terminee: false,
+    explosee: false,
+    pointsPerdus: 0,
+  }
 }
 
 /**
@@ -64,7 +74,15 @@ export function poser(
   if (total > regles.seuil) {
     evenements.push({ type: 'POSE_EXPLOSE', total, pointsPerdus: etat.points })
     return {
-      etat: { enMain, posees, total, points: 0, terminee: true, explosee: true },
+      etat: {
+        enMain,
+        posees,
+        total,
+        points: 0,
+        terminee: true,
+        explosee: true,
+        pointsPerdus: etat.points,
+      },
       evenements,
     }
   }
@@ -79,7 +97,10 @@ export function poser(
   const terminee = enMain.length === 0 || total === regles.seuil
   if (terminee) evenements.push({ type: 'POSE_ENCAISSE', points })
 
-  return { etat: { enMain, posees, total, points, terminee, explosee: false }, evenements }
+  return {
+    etat: { enMain, posees, total, points, terminee, explosee: false, pointsPerdus: 0 },
+    evenements,
+  }
 }
 
 export function encaisser(etat: EtatPose): ResultatPose {

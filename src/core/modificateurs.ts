@@ -52,8 +52,20 @@ export interface CtxScore {
   readonly effets: readonly Effet[]
 }
 
+/**
+ * Ce qu'une relique de Pose sait au moment ou la Pose se termine. Avec le seul drapeau
+ * `explosee`, aucune ne pouvait distinguer une Pose encaissee a 2 points d'une Pose menee
+ * jusqu'au seuil parfait — c'est-a-dire distinguer les deux decisions du joueur.
+ */
 export interface CtxEncaissement {
   readonly explosee: boolean
+  /** Points acquis. Zero si la Pose a explose : voir `pointsPerdus`. */
+  readonly points: number
+  readonly pointsPerdus: number
+  readonly total: number
+  readonly seuil: number
+  readonly posees: number
+  readonly restantes: number
 }
 
 export interface Gains {

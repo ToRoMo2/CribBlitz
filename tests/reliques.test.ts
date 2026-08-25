@@ -8,9 +8,19 @@ import {
   collecterEncaissement,
   plierConfigManche,
   plierEconomie,
+  type CtxEncaissement,
   type Modificateur,
 } from '../src/core/modificateurs.js'
 import { REGLES_MANCHE } from '../src/presets/manche.js'
+import { REGLES_POSE } from '../src/presets/pose.js'
+import { REGLES_BOUTIQUE } from '../src/presets/boutique.js'
+import {
+  RELIQUES,
+  LE_FUNAMBULE,
+  L_EQUILIBRISTE,
+  LE_METRONOME,
+  LE_CONTREPOIDS,
+} from '../src/reliques/catalogue.js'
 import { LE_COMPTEUR } from '../src/reliques/le-compteur.js'
 import { LA_FOURCHE } from '../src/reliques/la-fourche.js'
 import { LE_SAC } from '../src/reliques/le-sac.js'
@@ -19,7 +29,6 @@ import { LA_PINCE } from '../src/reliques/la-pince.js'
 import { LE_CRAN_D_ARRET } from '../src/reliques/le-cran-d-arret.js'
 import { LE_PENDU } from '../src/reliques/le-pendu.js'
 import { L_USURIER } from '../src/reliques/l-usurier.js'
-import { RELIQUES } from '../src/reliques/catalogue.js'
 
 function combinaisons(main: string, retourne: string, estBoite = false): Combinaison[] {
   return compterMain(parseCartes(main), parseCarte(retourne), estBoite)
@@ -45,9 +54,20 @@ function score(
 }
 
 describe('le catalogue', () => {
-  it('contient exactement les 8 reliques, tous id uniques', () => {
-    expect(RELIQUES).toHaveLength(8)
-    expect(new Set(RELIQUES.map((r) => r.id)).size).toBe(8)
+  /** Les huit de l'étape 2 : le socle contre lequel la courbe du §4.2 a été calibrée. */
+  const SOCLE = [
+    'le-compteur', 'la-fourche', 'le-sac', 'le-double-fond',
+    'la-pince', 'le-cran-d-arret', 'le-pendu', 'l-usurier',
+  ]
+
+  it('porte toujours les huit reliques de l’étape 2', () => {
+    const ids = RELIQUES.map((relique) => relique.id)
+    for (const id of SOCLE) expect(ids).toContain(id)
+  })
+
+  it('grandit vers les 24 de l’étape 5 sans jamais dépasser', () => {
+    expect(RELIQUES.length).toBeGreaterThanOrEqual(SOCLE.length)
+    expect(RELIQUES.length).toBeLessThanOrEqual(24)
   })
 })
 
@@ -158,14 +178,27 @@ describe('La Pince — Retourne avant défausse', () => {
   })
 })
 
+/** Une Pose terminee sans histoire : le contexte complet, avec juste le drapeau qui varie. */
+function encaissement(explosee: boolean): CtxEncaissement {
+  return {
+    explosee,
+    points: explosee ? 0 : 4,
+    pointsPerdus: explosee ? 4 : 0,
+    total: explosee ? 34 : 24,
+    seuil: 31,
+    posees: 3,
+    restantes: 1,
+  }
+}
+
 describe("Le Cran d'Arrêt — Pose sûre = +1 Mult", () => {
   it('produit un effet quand la Pose n’a pas explosé, rien sinon', () => {
-    expect(collecterEncaissement([LE_CRAN_D_ARRET], { explosee: false })).toHaveLength(1)
-    expect(collecterEncaissement([LE_CRAN_D_ARRET], { explosee: true })).toHaveLength(0)
+    expect(collecterEncaissement([LE_CRAN_D_ARRET], encaissement(false))).toHaveLength(1)
+    expect(collecterEncaissement([LE_CRAN_D_ARRET], encaissement(true))).toHaveLength(0)
   })
 
   it('consomme l’effet en +1 Mult sur la main', () => {
-    const effets = collecterEncaissement([LE_CRAN_D_ARRET], { explosee: false })
+    const effets = collecterEncaissement([LE_CRAN_D_ARRET], encaissement(false))
     const brut = calculerScore(combinaisons('4♠ 5♥ 5♦ 6♣', '6♠'))
     const avec = plierScore([LE_CRAN_D_ARRET], { points: brut.points, mult: brut.mult }, {
       origine: 'MAIN', occurrences: brut.occurrences, effets,
@@ -174,7 +207,7 @@ describe("Le Cran d'Arrêt — Pose sûre = +1 Mult", () => {
   })
 
   it('n’affecte pas la Boîte', () => {
-    const effets = collecterEncaissement([LE_CRAN_D_ARRET], { explosee: false })
+    const effets = collecterEncaissement([LE_CRAN_D_ARRET], encaissement(false))
     const brut = calculerScore(combinaisons('4♠ 5♥ 5♦ 6♣', '6♠', true))
     const avec = plierScore([LE_CRAN_D_ARRET], { points: brut.points, mult: brut.mult }, {
       origine: 'BOITE', occurrences: brut.occurrences, effets,
@@ -215,5 +248,120 @@ describe("L'Usurier — argent contre cible", () => {
   it('ajoute 2 ¤ aux gains', () => {
     const gains = plierEconomie([L_USURIER], { argent: 4 }, { trouAtteint: 10, cible: 6 })
     expect(gains.argent).toBe(6)
+  })
+})
+
+// ── Étape 5 : la famille Pose ──
+
+/** Un encaissement sur mesure, pour interroger une relique de Pose sur un cas précis. */
+function pose(partiel: Partial<CtxEncaissement>): CtxEncaissement {
+  return {
+    explosee: false,
+    points: 0,
+    pointsPerdus: 0,
+    total: 0,
+    seuil: 31,
+    posees: 0,
+    restantes: 0,
+    ...partiel,
+  }
+}
+
+/** Le Mult de la main après application d'une relique, effets d'encaissement compris. */
+function multMain(relique: Modificateur, ctx: CtxEncaissement, origine: 'MAIN' | 'BOITE' = 'MAIN'): number {
+  const effets = collecterEncaissement([relique], ctx)
+  const brut = calculerScore(combinaisons('4♠ 5♥ 5♦ 6♣', '6♠', origine === 'BOITE'))
+  return plierScore([relique], { points: brut.points, mult: brut.mult }, {
+    origine, occurrences: brut.occurrences, effets,
+  }).mult
+}
+
+describe('Le Funambule — un seuil plus haut, une chute plus dure', () => {
+  it('repousse le seuil de la Pose à 36', () => {
+    expect(LE_FUNAMBULE.configPose?.(REGLES_POSE).seuil).toBe(36)
+  })
+
+  it('une explosion ramène le Mult de la main à 1', () => {
+    expect(multMain(LE_FUNAMBULE, pose({ explosee: true, pointsPerdus: 6 }))).toBe(1)
+  })
+
+  it('sans explosion, il ne touche à rien', () => {
+    const brut = calculerScore(combinaisons('4♠ 5♥ 5♦ 6♣', '6♠'))
+    expect(multMain(LE_FUNAMBULE, pose({ points: 4, total: 30 }))).toBe(brut.mult)
+  })
+
+  it('n’écrase pas le Mult de la Boîte', () => {
+    const brut = calculerScore(combinaisons('4♠ 5♥ 5♦ 6♣', '6♠', true))
+    expect(multMain(LE_FUNAMBULE, pose({ explosee: true }), 'BOITE')).toBe(brut.mult)
+  })
+})
+
+describe("L'Équilibriste — le seuil parfait", () => {
+  it('donne +6 Mult quand la Pose finit pile sur le seuil', () => {
+    const brut = calculerScore(combinaisons('4♠ 5♥ 5♦ 6♣', '6♠'))
+    expect(multMain(L_EQUILIBRISTE, pose({ points: 4, total: 31 }))).toBe(brut.mult + 6)
+  })
+
+  it('ne donne rien à un Trou du seuil', () => {
+    const brut = calculerScore(combinaisons('4♠ 5♥ 5♦ 6♣', '6♠'))
+    expect(multMain(L_EQUILIBRISTE, pose({ points: 4, total: 30 }))).toBe(brut.mult)
+  })
+
+  it('suit le seuil courant, donc se combine avec Le Funambule', () => {
+    // Avec Le Funambule le seuil est 36 : c'est 36 qui devient la prouesse, pas 31.
+    expect(collecterEncaissement([L_EQUILIBRISTE], pose({ total: 36, seuil: 36 }))).toHaveLength(1)
+    expect(collecterEncaissement([L_EQUILIBRISTE], pose({ total: 31, seuil: 36 }))).toHaveLength(0)
+  })
+
+  it('une explosion pile sur le seuil ne compte pas', () => {
+    expect(collecterEncaissement([L_EQUILIBRISTE], pose({ explosee: true, total: 31 }))).toHaveLength(0)
+  })
+})
+
+describe('Le Métronome — aller au bout', () => {
+  it('double les points de Pose quand les 4 cartes sont posées', () => {
+    const brut = calculerScore(combinaisons('4♠ 5♥ 5♦ 6♣', '6♠'))
+    expect(multMain(LE_METRONOME, pose({ points: 5, posees: 4, restantes: 0 }))).toBe(brut.mult + 5)
+  })
+
+  it('ne donne rien si l’on encaisse en chemin', () => {
+    const brut = calculerScore(combinaisons('4♠ 5♥ 5♦ 6♣', '6♠'))
+    expect(multMain(LE_METRONOME, pose({ points: 5, posees: 2, restantes: 2 }))).toBe(brut.mult)
+  })
+
+  it('ne donne rien sur une Pose complète à zéro point — il amplifie, il ne crée pas', () => {
+    expect(collecterEncaissement([LE_METRONOME], pose({ points: 0, restantes: 0 }))).toHaveLength(0)
+  })
+})
+
+describe('Le Contrepoids — le risque devient une dette', () => {
+  it('rend en Mult les points que l’explosion a emportés', () => {
+    const brut = calculerScore(combinaisons('4♠ 5♥ 5♦ 6♣', '6♠'))
+    expect(multMain(LE_CONTREPOIDS, pose({ explosee: true, pointsPerdus: 7 }))).toBe(brut.mult + 7)
+  })
+
+  it('fait avancer la cheville adverse de 2 Trous, mais seulement sur explosion', () => {
+    expect(LE_CONTREPOIDS.surCheville?.(40, { donne: 1, scoreDeLaDonne: 0, explosee: true })).toBe(42)
+    expect(LE_CONTREPOIDS.surCheville?.(40, { donne: 1, scoreDeLaDonne: 0, explosee: false })).toBe(40)
+  })
+
+  it('ne rend rien quand la Pose n’a pas explosé', () => {
+    expect(collecterEncaissement([LE_CONTREPOIDS], pose({ points: 6 }))).toHaveLength(0)
+  })
+})
+
+describe('le catalogue de l’étape 5', () => {
+  it('la famille Pose compte 5 reliques', () => {
+    expect(RELIQUES.filter((relique) => relique.famille === 'POSE')).toHaveLength(5)
+  })
+
+  it('aucune relique n’a d’identifiant en double', () => {
+    expect(new Set(RELIQUES.map((relique) => relique.id)).size).toBe(RELIQUES.length)
+  })
+
+  it('chacune a un coût déclaré — jamais le défaut silencieux', () => {
+    for (const relique of RELIQUES) {
+      expect(REGLES_BOUTIQUE.coutsReliques[relique.id]).toBeDefined()
+    }
   })
 })

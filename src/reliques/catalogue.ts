@@ -7,10 +7,17 @@ import { LA_PINCE } from './la-pince.js'
 import { LE_CRAN_D_ARRET } from './le-cran-d-arret.js'
 import { LE_PENDU } from './le-pendu.js'
 import { L_USURIER } from './l-usurier.js'
+import { LE_FUNAMBULE } from './le-funambule.js'
+import { L_EQUILIBRISTE } from './l-equilibriste.js'
+import { LE_METRONOME } from './le-metronome.js'
+import { LE_CONTREPOIDS } from './le-contrepoids.js'
 
 /**
- * Les 8 reliques de l'etape 2 (carnet §5.2). Une simple liste de donnees : ajouter une
- * relique, c'est un fichier de plus et une ligne ici. Le moteur ne connait aucun de ces id.
+ * Le catalogue (carnet §5.2, §5.3). Une simple liste de donnees : ajouter une relique, c'est
+ * un fichier de plus et une ligne ici. Le moteur ne connait aucun de ces id.
+ *
+ * Les huit premieres sont celles de l'etape 2, les seules contre lesquelles la courbe des
+ * couts du §4.2 a ete calibree. Les suivantes viennent de l'etape 5, famille par famille.
  */
 export const RELIQUES: readonly Modificateur[] = [
   LE_COMPTEUR,
@@ -21,6 +28,11 @@ export const RELIQUES: readonly Modificateur[] = [
   LE_CRAN_D_ARRET,
   LE_PENDU,
   L_USURIER,
+  // Etape 5 — la famille Pose, la plus creuse du §5.3 (1 relique pour 5 visees).
+  LE_FUNAMBULE,
+  L_EQUILIBRISTE,
+  LE_METRONOME,
+  LE_CONTREPOIDS,
 ]
 
 export function reliqueParId(id: string): Modificateur {
@@ -38,4 +50,8 @@ export {
   LE_CRAN_D_ARRET,
   LE_PENDU,
   L_USURIER,
+  LE_FUNAMBULE,
+  L_EQUILIBRISTE,
+  LE_METRONOME,
+  LE_CONTREPOIDS,
 }
