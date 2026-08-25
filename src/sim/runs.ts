@@ -1,4 +1,4 @@
-import { acheterRelique, ameliorerVoie, genererOffre, type Offre } from '../core/boutique.js'
+import { acheterRelique, ameliorerVoie, genererOffre } from '../core/boutique.js'
 import { creerRng, type Rng } from '../core/rng.js'
 import {
   adversaireDeLaManche,
@@ -80,7 +80,17 @@ export const POLITIQUES: readonly PolitiqueAchat[] = [
     description: 'n’achète jamais — le plancher',
     acheter: (run) => {
       const genere = genererOffre(run)
-      return { run: { ...run, rng: genere.rng }, boutique: releve(run, genere.offre, []) }
+      return {
+        run: { ...run, rng: genere.rng },
+        boutique: {
+          indexManche: run.indexManche,
+          offertes: genere.offre.reliques.map((o) => ({
+            id: o.relique.id,
+            prenable: o.abordable && o.placeDisponible,
+          })),
+          prises: [],
+        },
+      }
     },
   },
   {
@@ -99,8 +109,14 @@ export const POLITIQUES: readonly PolitiqueAchat[] = [
     acheter: (run) => acheterSelon(run, { reliques: true, voies: true }),
   },
   {
-    nom: 'hasard',
-    description: 'prend une relique au hasard dans l’offre — le témoin du choix',
+    /**
+     * ATTENTION : ce n'est PAS le temoin du choix. Ne regardant qu'une offre sur deux, elle
+     * achete moins de reliques et garde donc plus d'argent pour les Voies — elle mesure une
+     * repartition de budget, pas une preference. Le vrai temoin demandera deux politiques
+     * qui achetent le meme nombre de reliques et ne different que sur laquelle.
+     */
+    nom: 'une-seule',
+    description: 'ne considère qu’une des deux offres — témoin de budget, pas de choix',
     acheter: (run) => acheterSelon(run, { reliques: true, voies: true, auHasard: true }),
   },
 ]
@@ -125,17 +141,22 @@ function acheterSelon(
   let courant: EtatRun = { ...run, rng: genere.rng }
   const prises: string[] = []
 
+  // « prenable » se juge au moment de la decision, pas a la generation de l'offre : si le
+  // premier achat vide la bourse, la seconde relique n'a pas ete refusee, elle etait hors
+  // de portee. Confondre les deux gonflait le taux de refus de tout le monde.
+  const offertes: { id: string; prenable: boolean }[] = []
+
   if (quoi.reliques) {
-    // « au hasard » ne regarde qu'une des deux offres, tiree sans preference : c'est le
-    // temoin qui dit si choisir vaut mieux que prendre.
+    // « au hasard » ne regarde qu'une des deux offres, tiree sans preference.
     const candidates = quoi.auHasard === true
       ? genere.offre.reliques.slice(offreTiree(run, genere.offre.reliques.length)).slice(0, 1)
       : genere.offre.reliques
 
     for (const offre of candidates) {
-      if (!offre.placeDisponible) break
-      if (courant.reliquesEquipees.length >= courant.reglesRun.emplacementsReliques) break
-      if (courant.argent < offre.cout) continue
+      const place = courant.reliquesEquipees.length < courant.reglesRun.emplacementsReliques
+      const prenable = place && courant.argent >= offre.cout
+      offertes.push({ id: offre.relique.id, prenable })
+      if (!prenable) continue
       courant = acheterRelique(courant, offre)
       prises.push(offre.relique.id)
     }
@@ -143,27 +164,15 @@ function acheterSelon(
   if (quoi.voies && courant.argent >= genere.offre.voie.cout) {
     courant = ameliorerVoie(courant, genere.offre.voie)
   }
-  return { run: courant, boutique: releve(run, genere.offre, prises) }
+  return {
+    run: courant,
+    boutique: { indexManche: run.indexManche, offertes, prises: [...prises] },
+  }
 }
 
 /** Un index d'offre derive de l'etat, sans consommer le PRNG du coeur. */
 function offreTiree(run: EtatRun, combien: number): number {
   return combien === 0 ? 0 : (run.indexManche + run.argent) % combien
-}
-
-/**
- * Une relique est « prenable » si elle etait offerte, abordable, et qu'il restait une place.
- * C'est la seule situation ou la refuser est une decision et non une contrainte.
- */
-function releve(run: EtatRun, offre: Offre, prises: readonly string[]): MesureBoutique {
-  return {
-    indexManche: run.indexManche,
-    offertes: offre.reliques.map((o) => ({
-      id: o.relique.id,
-      prenable: o.abordable && o.placeDisponible,
-    })),
-    prises: [...prises],
-  }
 }
 
 export function jouerRunComplete(

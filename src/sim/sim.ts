@@ -256,7 +256,7 @@ function main(): void {
     console.log(
       `${nombre} runs par politique, mêmes graines. ${RELIQUES.length} reliques au catalogue.`,
     )
-    for (const nom of ['tout', 'hasard']) {
+    for (const nom of ['tout', 'une-seule']) {
       afficherDominance(
         nom,
         mesurerDominance(politiqueParNom(nom), nombre, graine, options, RELIQUES),
