@@ -192,12 +192,112 @@ Jouer **3 runs complètes de 12 Manches**. Deux signaux :
 - **Mauvais signal :** on gagne sans réfléchir, ou on meurt toujours à la même Manche quoi
   qu'on achète. Dans les deux cas c'est la courbe qu'il faut refaire, pas le contenu.
 
-## Ce qu'on ne fait sous aucun prétexte avant l'étape 3
+---
 
-- Écrire plus de 8 reliques
+# ÉTAPE 5 — Le catalogue
+
+**Durée visée : 4 à 5 jours, dont la moitié en mesure.**
+
+**Verdict de l'étape 4 : oui.** La boucle tient sur 12 Manches, on perd en sachant à quelle
+Manche et pourquoi. C'est la condition qui autorise à poser du contenu dessus.
+
+### La question
+
+> **Est-ce que la variété tient — c'est-à-dire est-ce qu'on choisit encore, une fois que
+> l'offre est large ?**
+
+Les quatre premières étapes ont validé une boucle avec **huit** reliques. Huit, c'est assez
+peu pour qu'aucun choix ne soit vraiment un choix : la boutique en propose deux, on prend
+celle qu'on peut payer. La question de l'étape 2 — « est-ce qu'un build émerge ? » — a été
+répondue oui sur un catalogue si petit que le build était presque imposé.
+
+C'est le risque le plus lourd du carnet §7, celui noté **forte** depuis le premier jour :
+*le build se voit trop vite*. Il ne peut se mesurer que sur un catalogue large.
+
+### Ce qui est dans le périmètre
+
+**1. Vingt-quatre reliques**, réparties selon les six familles du carnet §5.3 et dans les
+proportions qu'il vise :
+
+| Famille | Part visée | Nombre | Aujourd'hui |
+|---|---|---|---|
+| **Compte** | 30 % | 7 | 3 |
+| **Pose** | 20 % | 5 | 1 |
+| **Boîte** | 15 % | 4 | 1 |
+| **Défausse** | 10 % | 2 | 1 |
+| **Retourne** | 10 % | 2 | 1 |
+| **Structure** | 15 % | 4 | 1 |
+
+Vingt-quatre et pas trente : une run offre 2 reliques par boutique sur 11 boutiques, soit
+22 tirages. En dessous de ce chiffre, le catalogue se voit en entier et la variété est une
+illusion ; très au-dessus, on ne peut plus mesurer chaque relique.
+
+La famille **Pose** est celle qui manque le plus — une seule relique aujourd'hui pour 20 %
+visés. C'est aussi celle qui vient de changer de nature : depuis que la Pose achète du Mult
+(carnet §1.3), une relique de Pose agit sur un multiplicateur et non sur un appoint.
+
+**2. La doctrine du §5.1 tenue sans exception.** Aucune relique qui fait « +X ». Chacune
+change une règle, déplace un seuil, ou lie deux surfaces. Une relique est une donnée dans son
+propre fichier, et le moteur ne gagne **aucun `switch`**.
+
+**3. Le harnais étendu à la mesure de dominance.** C'est le vrai travail de l'étape :
+
+- **taux de présence** de chaque relique dans les runs gagnantes ;
+- **taux de refus** : combien de fois elle est proposée, abordable, et non prise ;
+- la **matrice de synergie** du `--synergie` de l'étape 2, portée à 24 × 24 ;
+- l'**écart de taux de victoire** entre une politique qui choisit et une politique qui prend
+  au hasard dans l'offre.
+
+**4. Une politique d'achat qui choisit.** Les quatre politiques actuelles achètent par
+catégorie, jamais par pertinence. Tant qu'aucune ne sait préférer une relique à une autre, on
+ne peut pas mesurer si le choix compte.
+
+### Ce qui est HORS périmètre
+
+Le deckbuilding. Les Voies au-delà des cinq. Les Adversaires au-delà des huit. Le rendu au-delà
+de ce qui existe. La direction artistique et le nom. Et **la calibration** : voir ci-dessous.
+
+### Le risque assumé de cette étape
+
+Poser du contenu **fige la courbe**. Les coûts de Trou du carnet §4.2 ont été calibrés contre
+huit reliques ; avec vingt-quatre, tout déplacement de la courbe demandera de tout remesurer.
+On accepte donc de laisser la question ouverte n° 9 — le taux de victoire de 43 %, que
+PROTOTYPE veut bas — **non résolue pendant toute l'étape**, et de ne la reprendre qu'après,
+sur le catalogue complet. La traiter maintenant serait calibrer contre une cible mouvante.
+
+Corollaire : si l'étape 5 fait monter le taux de victoire au-delà de ~60 %, on s'arrête et on
+recalibre avant d'écrire la vingt-cinquième relique.
+
+### Ce qu'il faut mesurer
+
+| Mesure | Pourquoi |
+|---|---|
+| Taux de présence par relique dans les runs gagnantes | **le risque n° 1** : au-delà de 80 %, la relique est obligatoire et le choix est faux |
+| Taux de refus par relique | une relique jamais prise est du contenu mort |
+| Écart entre « choisit » et « prend au hasard » | si l'écart est faible, la variété est décorative |
+| Nombre de reliques distinctes vues sur 5 runs | mesure directe de la variété perçue |
+| Taux de victoire | il ne doit pas dériver au-delà de ~60 % |
+
+La première ligne est le verdict. Une relique présente dans 80 % des victoires n'est pas une
+option, c'est une condition — et le catalogue autour d'elle n'est qu'un décor.
+
+### Critère d'arrêt
+
+Jouer **5 runs**. Deux signaux :
+
+- **Bon signal :** on renonce à la relique la plus chère parce qu'une moins chère va avec ce
+  qu'on a déjà, et deux runs gagnantes n'ont pas le même équipement.
+- **Mauvais signal :** les mêmes cinq reliques gagnent à chaque fois. Dans ce cas ce n'est pas
+  le catalogue qu'il faut agrandir, c'est la doctrine du §5.1 qu'il faut revoir — et ça
+  invalide la réponse de l'étape 2 autant que celle-ci.
+
+---
+
+## Ce qu'on ne fait sous aucun prétexte avant l'étape 6
+
 - Choisir une direction artistique ou un nom
 - Toucher à un moteur graphique
-- Équilibrer finement quoi que ce soit
+- Équilibrer finement quoi que ce soit — voir le risque assumé de l'étape 5
 - Ajouter le deckbuilding
 
 Le contenu posé sur une boucle qui ne tient pas, c'est du contenu que personne ne verra.

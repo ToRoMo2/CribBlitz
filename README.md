@@ -130,15 +130,16 @@ compte à votre place et surligne chaque combinaison au moment où il l'annonce.
 
 ## État du projet
 
-Prototype. Les trois premières étapes de [`PROTOTYPE.md`](PROTOTYPE.md) ont répondu oui ;
-la quatrième est en cours.
+Prototype. Les quatre premières étapes de [`PROTOTYPE.md`](PROTOTYPE.md) ont répondu oui ;
+la cinquième est en cours.
 
 | Étape | Question | Verdict |
 |---|---|---|
 | **1** — le moteur et une Manche | la défausse est-elle un choix intéressant ? | oui, c'est une décision |
 | **2** — reliques et boutique | un build émerge-t-il ? veut-on relancer ? | oui, on relance |
 | **3** — le feel | le comptage se scande-t-il ? | oui |
-| **4** — la run entière | le Trou 121 exige-t-il d'avoir cassé quelque chose ? | en cours |
+| **4** — la run entière | le Trou 121 exige-t-il d'avoir cassé quelque chose ? | oui |
+| **5** — le catalogue | choisit-on encore quand l'offre est large ? | en cours |
 
 Le cœur (`src/core/`) est pur et testé. Il émet un flux ordonné d'événements que trois
 couches rejouent sans jamais le modifier : la CLI en texte, la simulation en chiffres, le
@@ -159,13 +160,17 @@ franchissaient la ligne avant la Manche 10 et ne rencontraient jamais l'Adversai
 Rue IV ; avec elles, toutes les runs gagnantes affrontent les quatre. Le détail de la
 mesure est au §4.3 du carnet.
 
-Il reste à l'étape 4 son critère d'arrêt : **3 runs complètes jouées à la main**.
+Son critère d'arrêt est rempli : les runs se perdent en sachant à quelle Manche et pourquoi.
+
+L'étape 5 pose du contenu sur cette boucle — **24 reliques** réparties dans les six familles
+du carnet §5.3 — et pose la seule question qu'un petit catalogue ne peut pas trancher :
+choisit-on encore quand l'offre est large ?
 
 ## Documents
 
 - **[`CARNET-DE-CONCEPTION.md`](CARNET-DE-CONCEPTION.md)** — la bible. Règles exactes,
   algorithme de score, structure de run, reliques, tous les chiffres.
-- **[`PROTOTYPE.md`](PROTOTYPE.md)** — le périmètre de l'étape 1 et de l'étape 2.
+- **[`PROTOTYPE.md`](PROTOTYPE.md)** — le périmètre fermé de chaque étape, et sa question unique.
 - **[`CLAUDE.md`](CLAUDE.md)** — règles de travail et conventions de code.
 
 Le vocabulaire est provisoire mais fixé : Donne, Manche, Rue, Boîte, Retourne, Pose,

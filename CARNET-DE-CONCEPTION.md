@@ -478,6 +478,9 @@ L'intérêt est ce qui rend **le fait de ne pas acheter** excitant. Il n'est pas
 
 ### 5.2 Les huit reliques de l'étape 2
 
+*L'étape 5 porte le catalogue à 24, réparties selon les familles du §5.3. Ces huit-là restent
+le socle : ce sont les seules contre lesquelles la courbe des coûts du §4.2 a été calibrée.*
+
 Choisies pour couvrir toutes les familles et pour qu'un build émerge en trois Manches.
 
 | Nom | Effet | Famille |
